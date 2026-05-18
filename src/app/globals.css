@@ -1,0 +1,134 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-bg: #fbf7f1;
+  --color-fg: #1f120a;
+}
+
+html,
+body {
+  background-color: var(--color-bg);
+  color: var(--color-fg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/*
+ * Prevent horizontal scroll from decorative absolute/blur elements
+ * (e.g. the orbs inside CtaBanner) WITHOUT breaking `position: sticky`
+ * on the navbar.
+ *
+ * `overflow-x: hidden` on <html>/<body> turns the element into a scroll
+ * container, which detaches sticky descendants from the viewport's scroll.
+ * `overflow-x: clip` clips overflow without creating a scroll container,
+ * so the navbar stays pinned correctly.
+ */
+html {
+  overflow-x: clip;
+}
+
+* {
+  border-color: theme("colors.coffee.100");
+}
+
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5 {
+    @apply font-display tracking-tight;
+  }
+
+  ::selection {
+    background-color: theme("colors.coffee.500");
+    color: theme("colors.cream.50");
+  }
+}
+
+@layer components {
+  .container-base {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-full bg-coffee-700 px-6 py-3 text-sm font-medium uppercase tracking-wider text-cream-50 shadow-[0_8px_20px_-8px_rgba(46,27,16,0.6)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-coffee-800 hover:shadow-[0_16px_32px_-12px_rgba(46,27,16,0.55)] active:translate-y-0 active:scale-[0.97] active:shadow-[0_4px_12px_-4px_rgba(46,27,16,0.6)] focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400 focus-visible:ring-offset-2 focus-visible:ring-offset-cream-50 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none motion-reduce:hover:translate-y-0;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center rounded-full border border-coffee-700/30 px-6 py-3 text-sm font-medium uppercase tracking-wider text-coffee-700 transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-coffee-700 hover:bg-coffee-700 hover:text-cream-50 hover:shadow-[0_16px_32px_-12px_rgba(46,27,16,0.45)] active:translate-y-0 active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400 focus-visible:ring-offset-2 focus-visible:ring-offset-cream-50 motion-reduce:transition-none motion-reduce:hover:translate-y-0;
+  }
+
+  .btn-gold {
+    @apply inline-flex items-center justify-center rounded-full bg-gold-500 px-6 py-3 text-sm font-semibold uppercase tracking-wider text-coffee-900 shadow-[0_10px_25px_-10px_rgba(184,138,58,0.7)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-gold-400 hover:shadow-[0_18px_35px_-12px_rgba(184,138,58,0.7)] active:translate-y-0 active:scale-[0.97] active:shadow-[0_4px_14px_-4px_rgba(184,138,58,0.6)] focus:outline-none focus-visible:ring-2 focus-visible:ring-gold-400 focus-visible:ring-offset-2 focus-visible:ring-offset-cream-50 motion-reduce:transition-none motion-reduce:hover:translate-y-0;
+  }
+
+  .section {
+    @apply py-14 sm:py-20 lg:py-28;
+  }
+
+  .eyebrow {
+    @apply text-xs font-semibold uppercase tracking-[0.3em] text-gold-600;
+  }
+
+  .input {
+    @apply w-full rounded-xl border border-coffee-100 bg-white px-4 py-3 text-coffee-800 placeholder:text-coffee-300 transition-all duration-200 ease-out hover:border-coffee-200 focus:-translate-y-0.5 focus:border-coffee-300 focus:bg-cream-50 focus:shadow-[0_8px_20px_-12px_rgba(66,41,26,0.35)] focus:outline-none focus:ring-2 focus:ring-gold-400/50 motion-reduce:transition-none motion-reduce:focus:translate-y-0;
+  }
+
+  .card {
+    @apply rounded-3xl bg-white shadow-[0_20px_60px_-30px_rgba(66,41,26,0.25)] ring-1 ring-coffee-100 transition-all duration-300 ease-out;
+  }
+
+  .card-interactive {
+    @apply card cursor-pointer hover:-translate-y-1.5 hover:shadow-[0_30px_70px_-25px_rgba(66,41,26,0.4)] hover:ring-coffee-200 active:translate-y-0 active:scale-[0.99] motion-reduce:transition-none motion-reduce:hover:translate-y-0;
+  }
+
+  /* Animated underline for nav + inline links */
+  .link-underline {
+    @apply relative transition-colors duration-200;
+  }
+  .link-underline::after {
+    content: "";
+    @apply absolute left-0 -bottom-1 h-px w-full origin-right scale-x-0 bg-current transition-transform duration-300 ease-out;
+  }
+  .link-underline:hover::after,
+  .link-underline[data-active="true"]::after {
+    @apply origin-left scale-x-100;
+  }
+
+  /* Social / icon button */
+  .icon-btn {
+    @apply inline-flex items-center justify-center rounded-full transition-all duration-300 ease-out hover:-translate-y-0.5 hover:rotate-[-6deg] hover:text-gold-400 active:translate-y-0 active:scale-90 motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:hover:rotate-0;
+  }
+}
+
+/* Press feedback for anything tagged `data-press` */
+[data-press] {
+  @apply transition-transform duration-150 ease-out active:scale-[0.96];
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: theme("colors.coffee.200");
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-track {
+  background: theme("colors.cream.50");
+}
