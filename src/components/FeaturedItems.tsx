@@ -1,7 +1,7 @@
 import Link from "next/link";
 import SafeImage from "@/components/SafeImage";
 import Reveal from "@/components/anim/Reveal";
-import { bestsellers } from "@/lib/data/menu";
+import { bestsellers, FALLBACK_MENU_IMAGE } from "@/lib/data/menu";
 import { formatPkr } from "@/lib/utils";
 import { ArrowRight } from "lucide-react";
 
@@ -42,7 +42,8 @@ export default function FeaturedItems() {
             >
               <div className="relative h-48 w-full overflow-hidden bg-coffee-100 sm:h-56">
                 <SafeImage
-                  src={item.image}
+                  src={item.image ?? FALLBACK_MENU_IMAGE}
+                  fallbackSrc={FALLBACK_MENU_IMAGE}
                   alt={item.name}
                   fill
                   className="object-cover transition-transform duration-[1100ms] ease-out group-hover:scale-110"

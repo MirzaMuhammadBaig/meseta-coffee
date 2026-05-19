@@ -151,8 +151,10 @@ const config: Config = {
           "50%":      { transform: "translateY(4px)" },
         },
         cupBob: {
-          "0%, 100%": { transform: "translate3d(0,0,0) rotate(-1.5deg)" },
-          "50%":      { transform: "translate3d(0,-14px,0) rotate(1.5deg)" },
+          "0%, 100%": { transform: "translate3d(0,0,0) rotate(-2.5deg)" },
+          "25%":      { transform: "translate3d(-4px,-14px,0) rotate(-0.5deg)" },
+          "50%":      { transform: "translate3d(0,-22px,0) rotate(2.5deg)" },
+          "75%":      { transform: "translate3d(4px,-14px,0) rotate(0.5deg)" },
         },
         coffeeRipple: {
           "0%, 100%": { transform: "scaleX(1) skewX(0deg)" },

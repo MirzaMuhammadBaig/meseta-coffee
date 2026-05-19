@@ -4,36 +4,47 @@ import { CreditCard, Wallet, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type PaymentMethod = "card" | "cash";
+export type Fulfilment = "pickup" | "delivery";
 
-const methods: {
+type Method = {
   value: PaymentMethod;
   label: string;
   description: string;
   icon: typeof CreditCard;
   badge?: string;
-}[] = [
-  {
-    value: "card",
-    label: "Debit / Credit card",
-    description: "Visa, Mastercard, Amex. Secured by Safepay.",
-    icon: CreditCard,
-    badge: "Recommended",
-  },
-  {
-    value: "cash",
-    label: "Cash on pickup",
-    description: "Pay at the counter when you collect your order.",
-    icon: Wallet,
-  },
-];
+};
+
+function getMethods(fulfilment: Fulfilment): Method[] {
+  const isDelivery = fulfilment === "delivery";
+  return [
+    {
+      value: "card",
+      label: "Debit / Credit card",
+      description: "Visa, Mastercard, Amex. Secured by Safepay.",
+      icon: CreditCard,
+      badge: "Recommended",
+    },
+    {
+      value: "cash",
+      label: isDelivery ? "Cash on delivery" : "Cash on pickup",
+      description: isDelivery
+        ? "Pay the rider in cash when your order arrives."
+        : "Pay at the counter when you collect your order.",
+      icon: Wallet,
+    },
+  ];
+}
 
 export default function PaymentMethodPicker({
   value,
   onChange,
+  fulfilment = "pickup",
 }: {
   value: PaymentMethod;
   onChange: (m: PaymentMethod) => void;
+  fulfilment?: Fulfilment;
 }) {
+  const methods = getMethods(fulfilment);
   return (
     <fieldset className="grid gap-3">
       <legend className="text-xs font-semibold uppercase tracking-[0.2em] text-coffee-500">

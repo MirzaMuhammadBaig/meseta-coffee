@@ -234,7 +234,11 @@ export default function CheckoutPage() {
                 </h2>
               </header>
 
-              <PaymentMethodPicker value={method} onChange={setMethod} />
+              <PaymentMethodPicker
+                value={method}
+                onChange={setMethod}
+                fulfilment={fulfilment}
+              />
             </div>
 
             {/* Notes */}

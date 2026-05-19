@@ -6,6 +6,7 @@ import { Search, SlidersHorizontal, X } from "lucide-react";
 import AddToOrderButton from "@/components/cart/AddToOrderButton";
 import SafeImage from "@/components/SafeImage";
 import type { MenuItem } from "@/lib/data/menu";
+import { FALLBACK_MENU_IMAGE } from "@/lib/data/menu-images";
 import { cn, formatPkr } from "@/lib/utils";
 
 type Category = {
@@ -360,7 +361,8 @@ function MenuCard({ item, highlight }: { item: MenuItem; highlight?: string }) {
       >
         <div className="relative h-44 w-full overflow-hidden sm:h-48">
           <SafeImage
-            src={item.image}
+            src={item.image ?? FALLBACK_MENU_IMAGE}
+            fallbackSrc={FALLBACK_MENU_IMAGE}
             alt={item.name}
             fill
             className="object-cover transition-transform duration-[1100ms] ease-out group-hover:scale-110"

@@ -62,7 +62,7 @@ export default function HeroBeans() {
   return (
     <div
       aria-hidden
-      className="pointer-events-none absolute inset-0 overflow-hidden text-gold-400 motion-reduce:hidden"
+      className="pointer-events-none absolute inset-0 overflow-hidden text-gold-400"
     >
       {beans.map((b, i) => (
         <span

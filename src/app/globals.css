@@ -109,13 +109,36 @@ html {
   @apply transition-transform duration-150 ease-out active:scale-[0.96];
 }
 
+/*
+ * Eliminate the 300ms tap delay on touch devices and prevent accidental
+ * double-clicks on interactive elements (buttons, links, the cart steppers).
+ * `manipulation` keeps pinch/zoom but skips double-tap-to-zoom, which is
+ * what most browsers wait for before firing the click.
+ */
+button,
+a,
+[role="button"],
+[data-press],
+input[type="submit"],
+input[type="button"] {
+  touch-action: manipulation;
+}
+
+/*
+ * Reduced-motion handling.
+ *
+ * The previous wildcard rule killed every animation/transition on the page
+ * (animation-duration: 0.001ms) which broke marquees, the ticker, the cup
+ * bob, the latte-art draw-on, and hid the beans (because individual
+ * components rely on `motion-reduce:` classes that *complement* — not
+ * replace — animation timing).
+ *
+ * Components that should hard-stop their own motion already opt in via
+ * Tailwind's `motion-reduce:` modifiers. So we keep only `scroll-behavior`
+ * here — that one truly should never be smooth for sensitive users.
+ */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.001ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.001ms !important;
+  html {
     scroll-behavior: auto !important;
   }
 }

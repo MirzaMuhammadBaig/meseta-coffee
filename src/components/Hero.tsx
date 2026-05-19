@@ -1,6 +1,5 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Star } from "lucide-react";
 import { site } from "@/lib/data/site";
 import Reveal from "@/components/anim/Reveal";
 import Parallax from "@/components/anim/Parallax";
@@ -8,6 +7,8 @@ import HeroBeans from "@/components/anim/HeroBeans";
 import HeroSteam from "@/components/anim/HeroSteam";
 import HeroCup from "@/components/anim/HeroCup";
 import NowServing from "@/components/NowServing";
+import AnimatedRating from "@/components/anim/AnimatedRating";
+import LiveBrewing from "@/components/anim/LiveBrewing";
 
 export default function Hero() {
   return (
@@ -69,21 +70,18 @@ export default function Hero() {
             </div>
           </Reveal>
 
-          <Reveal delay={550}>
-            <div className="mt-8 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-cream-100/80 sm:mt-10 sm:gap-x-6">
-              <div className="group/stars flex items-center gap-1.5">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Star
-                    key={i}
-                    style={{ transitionDelay: `${i * 60}ms` }}
-                    className="h-4 w-4 fill-gold-400 text-gold-400 transition-transform duration-300 ease-out group-hover/stars:-translate-y-0.5 group-hover/stars:scale-110"
-                  />
-                ))}
-              </div>
-              <span className="whitespace-nowrap">
-                {site.stats.googleRating} ·{" "}
-                {site.stats.googleReviewCount.toLocaleString()} Google reviews
-              </span>
+          <Reveal delay={500}>
+            <div className="mt-6 sm:mt-8">
+              <LiveBrewing target={3} />
+            </div>
+          </Reveal>
+
+          <Reveal delay={650}>
+            <div className="mt-6 sm:mt-8">
+              <AnimatedRating
+                rating={site.stats.googleRating}
+                reviewCount={site.stats.googleReviewCount}
+              />
             </div>
           </Reveal>
         </div>

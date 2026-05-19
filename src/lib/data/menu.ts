@@ -323,8 +323,7 @@ export async function getPublicMenuItem(slug: string): Promise<MenuItem | null> 
 }
 
 /** Default hero image used when a menu item has no `image` field. */
-export const FALLBACK_MENU_IMAGE =
-  "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=1200&q=80";
+export { FALLBACK_MENU_IMAGE } from "./menu-images";
 
 export function getMenuItem(slug: string): MenuItem | undefined {
   return menu.find((m) => m.slug === slug);
