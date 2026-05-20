@@ -12,8 +12,7 @@ import { Star } from "lucide-react";
  *     tracks the current rating (so half-stars look right, not chunky).
  *   • Review count counts up from 0 to its target in lock-step.
  *
- * Honours `prefers-reduced-motion` by skipping the animation and
- * displaying the final values immediately.
+ * The fill begins once the widget scrolls into view.
  */
 
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
@@ -21,7 +20,7 @@ const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 export default function AnimatedRating({
   rating,
   reviewCount,
-  duration = 1800,
+  duration = 4200,
 }: {
   rating: number;
   reviewCount: number;
@@ -31,15 +30,12 @@ export default function AnimatedRating({
   const [progress, setProgress] = useState(0); // 0 → 1
   const [started, setStarted] = useState(false);
 
+  // The slow star-fill is a core part of the hero experience, so it plays
+  // for everyone — it's a gentle, non-flashing effect, not the kind that
+  // reduce-motion is meant to suppress.
   useEffect(() => {
     const el = ref.current;
     if (!el || started) return;
-
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setStarted(true);
-      setProgress(1);
-      return;
-    }
 
     const io = new IntersectionObserver(
       ([entry]) => {

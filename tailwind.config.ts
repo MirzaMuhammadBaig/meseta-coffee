@@ -69,6 +69,8 @@ const config: Config = {
         // Section reveals (CSS-only fallbacks for non-Reveal places)
         "fade-up-soft": "fadeUpSoft 0.9s ease-out forwards",
         "shimmer": "shimmer 2.5s linear infinite",
+        // Soft breathing glow behind the hero store-status badges
+        "badge-glow": "badgeGlow 2.8s ease-in-out infinite",
       },
       keyframes: {
         fadeUp: {
@@ -185,6 +187,11 @@ const config: Config = {
         shimmer: {
           "0%":   { backgroundPosition: "-200% 0" },
           "100%": { backgroundPosition: "200% 0" },
+        },
+        // Breathing halo — opacity + gentle scale — behind status badges
+        badgeGlow: {
+          "0%, 100%": { opacity: "0.3", transform: "scale(0.92)" },
+          "50%":      { opacity: "0.7", transform: "scale(1.08)" },
         },
       },
     },

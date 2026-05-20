@@ -6,7 +6,7 @@ import Parallax from "@/components/anim/Parallax";
 import HeroBeans from "@/components/anim/HeroBeans";
 import HeroSteam from "@/components/anim/HeroSteam";
 import HeroCup from "@/components/anim/HeroCup";
-import NowServing from "@/components/NowServing";
+import StoreStatusBadge from "@/components/anim/StoreStatusBadge";
 import AnimatedRating from "@/components/anim/AnimatedRating";
 import LiveBrewing from "@/components/anim/LiveBrewing";
 
@@ -34,7 +34,7 @@ export default function Hero() {
       <div className="container-base relative grid min-h-[calc(100svh-5rem)] items-center gap-10 py-16 sm:min-h-[80vh] sm:py-20 lg:min-h-[88vh] lg:grid-cols-[1.15fr_1fr] lg:gap-14 lg:py-24">
         <div className="max-w-3xl">
           <Reveal delay={0} duration={700}>
-            <NowServing />
+            <StoreStatusBadge />
           </Reveal>
 
           <Reveal as="h1" duration={900} delay={100}>

@@ -67,8 +67,11 @@ export default function ContactForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="card grid gap-5 p-6 sm:p-8 lg:p-10">
-      <div className="grid gap-5 sm:grid-cols-2">
+    <form
+      onSubmit={onSubmit}
+      className="card flex flex-col gap-4 self-start p-6 sm:p-7 lg:p-8"
+    >
+      <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className="text-xs font-semibold uppercase tracking-[0.2em] text-coffee-500">
             Name
@@ -80,7 +83,7 @@ export default function ContactForm() {
             inputMode="text"
             autoComplete="name"
             maxLength={60}
-            className="input mt-2"
+            className="input mt-1.5 py-2.5"
             placeholder="Your name"
             onChange={(e) => sanitize(e, lettersOnly)}
           />
@@ -93,13 +96,13 @@ export default function ContactForm() {
             type="email"
             name="email"
             required
-            className="input mt-2"
+            className="input mt-1.5 py-2.5"
             placeholder="you@example.com"
           />
         </div>
       </div>
 
-      <div className="grid gap-5 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className="text-xs font-semibold uppercase tracking-[0.2em] text-coffee-500">
             Phone (optional)
@@ -110,7 +113,7 @@ export default function ContactForm() {
             inputMode="tel"
             autoComplete="tel"
             maxLength={20}
-            className="input mt-2"
+            className="input mt-1.5 py-2.5"
             placeholder="+92 ..."
             onChange={(e) => sanitize(e, phoneChars)}
           />
@@ -121,7 +124,7 @@ export default function ContactForm() {
           </label>
           <input
             name="subject"
-            className="input mt-2"
+            className="input mt-1.5 py-2.5"
             placeholder="What's on your mind?"
           />
         </div>
@@ -134,8 +137,8 @@ export default function ContactForm() {
         <textarea
           name="message"
           required
-          rows={5}
-          className="input mt-2 resize-none"
+          rows={4}
+          className="input mt-1.5 resize-none"
           placeholder="Tell us a little more…"
         />
       </div>
