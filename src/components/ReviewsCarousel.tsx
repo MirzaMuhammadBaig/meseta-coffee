@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Star, Quote } from "lucide-react";
 import { featuredReviews } from "@/lib/data/reviews";
 import { formatDate } from "@/lib/utils";
@@ -29,14 +30,9 @@ export default function ReviewsCarousel() {
             </p>
           </Reveal>
           <Reveal delay={150}>
-            <a
-              href="https://www.google.com/maps?q=Meseta+Coffee+Bahria+Town+Rawalpindi"
-              target="_blank"
-              rel="noreferrer noopener"
-              className="btn-gold w-full sm:w-auto"
-            >
+            <Link href="/reviews#leave-a-review" className="btn-gold w-full sm:w-auto">
               Leave a review
-            </a>
+            </Link>
           </Reveal>
         </div>
 

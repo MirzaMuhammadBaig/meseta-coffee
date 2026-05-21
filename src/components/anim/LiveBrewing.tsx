@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   nextWhenPhrase,
   useLiveStoreStatus,
@@ -32,36 +32,19 @@ export default function LiveBrewing({
   const status = useLiveStoreStatus();
   const open = status.open;
 
-  const ref = useRef<HTMLDivElement | null>(null);
   const [value, setValue] = useState(0);
   const [started, setStarted] = useState(false);
 
-  // Reveal → count up. Resets whenever the shop closes.
+  // The badge lives in the hero (the landing view) — the count-up starts
+  // on mount, never waiting for a scroll. Resets if the shop closes.
   useEffect(() => {
     if (!open) {
       setStarted(false);
       setValue(0);
       return;
     }
-    const el = ref.current;
-    if (!el) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setValue(target);
-      setStarted(true);
-      return;
-    }
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setStarted(true);
-          io.disconnect();
-        }
-      },
-      { threshold: 0.3 },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [open, target]);
+    setStarted(true);
+  }, [open]);
 
   // Eased count-up from 0 → target.
   useEffect(() => {
@@ -96,7 +79,7 @@ export default function LiveBrewing({
       : `We reopen ${nextWhenPhrase(status)}`;
 
   return (
-    <div ref={ref} className="relative inline-flex max-w-full">
+    <div className="relative inline-flex max-w-full">
       {/* Breathing glow halo */}
       <span
         aria-hidden

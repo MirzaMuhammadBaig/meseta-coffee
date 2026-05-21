@@ -2,7 +2,7 @@
 
 import { Check, Lock, Minus, Plus } from "lucide-react";
 import { useCart } from "@/lib/cart/CartProvider";
-import { useStoreStatus } from "@/lib/store-status/StoreStatusProvider";
+import { useLiveStoreStatus } from "@/lib/store-status/useLiveStoreStatus";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -23,7 +23,9 @@ function swallow(e: React.SyntheticEvent) {
 
 export default function AddToOrderButton({ slug, name, price, className }: Props) {
   const { lines, add, setQty } = useCart();
-  const { isOpen } = useStoreStatus();
+  // `open` here is the *effective* state — the admin switch AND the
+  // published hours. After-hours blocks add-to-cart just like a manual close.
+  const { open: isOpen } = useLiveStoreStatus();
   const line = lines.find((l) => l.slug === slug);
   const qty = line?.qty ?? 0;
 

@@ -9,6 +9,7 @@ import {
 } from "@/lib/safepay/client";
 import { menu } from "@/lib/data/menu";
 import { getStoreSettings } from "@/lib/admin/store";
+import { getNextOpening, isWithinHours } from "@/lib/hours";
 
 export const runtime = "nodejs";
 
@@ -119,13 +120,27 @@ export async function POST(req: Request) {
     );
   }
 
-  // ─── Refuse orders when the admin has closed the store ──
+  // ─── Refuse orders when the store is closed ─────────────
+  // Two ways to be closed: the admin's manual switch, or simply being
+  // outside the published opening hours. Both block the order.
   const settings = await getStoreSettings().catch(() => null);
   if (settings && !settings.is_open) {
     return NextResponse.json(
       {
         error:
           settings.closed_message ?? "The store is closed for online orders right now.",
+        code: "store_closed",
+      },
+      { status: 503 },
+    );
+  }
+  if (!isWithinHours()) {
+    const next = getNextOpening();
+    return NextResponse.json(
+      {
+        error: next
+          ? `We are closed right now — we reopen ${next.dayLabel} at ${next.time}.`
+          : "We are closed right now. Please order during our opening hours.",
         code: "store_closed",
       },
       { status: 503 },

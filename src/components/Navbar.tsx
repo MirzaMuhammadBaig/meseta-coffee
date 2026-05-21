@@ -57,19 +57,25 @@ export default function Navbar() {
     setOpen(false);
   }, [pathname]);
 
-  // Lock body scroll while the mobile drawer is open
+  // Close the mobile menu on Escape.
   useEffect(() => {
-    if (open) {
-      const original = document.body.style.overflow;
-      document.body.style.overflow = "hidden";
-      return () => {
-        document.body.style.overflow = original;
-      };
-    }
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
+  // The mobile menu + backdrop below are `position: fixed`, so they
+  // anchor to the viewport on their own. We deliberately do NOT lock
+  // <body> scroll: `overflow: hidden` on <body> turns it into a scroll
+  // container and detaches the `position: sticky` header, which would
+  // shove the navbar off-screen when the menu is opened mid-scroll.
+
   return (
-    <header
+    <>
+      <header
       data-scrolled={scrolled}
       className={cn(
         "sticky top-0 z-50 transition-[background-color,box-shadow,border-color,backdrop-filter] duration-300 ease-out",
@@ -159,44 +165,61 @@ export default function Navbar() {
         </button>
       </div>
 
+    </header>
+
+      {/* ── Mobile menu — fixed overlay ─────────────────────────────
+          The backdrop + panel are fixed-position siblings of the
+          header, so the menu is always anchored to the viewport. It
+          can never be dragged off-screen by the header's sticky scroll
+          context, no matter how far the page is scrolled. */}
+      <div
+        aria-hidden
+        onClick={() => setOpen(false)}
+        className={cn(
+          "fixed inset-0 z-40 bg-coffee-900/40 backdrop-blur-[2px] transition-opacity duration-300 md:hidden",
+          open ? "opacity-100" : "pointer-events-none opacity-0",
+        )}
+      />
       <div
         className={cn(
-          "grid overflow-hidden border-t border-coffee-100 bg-cream-50 transition-[grid-template-rows] duration-300 ease-out md:hidden",
-          open ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+          "fixed inset-x-0 top-0 z-40 border-b border-coffee-100 bg-cream-50 shadow-[0_24px_48px_-24px_rgba(66,41,26,0.55)] transition-[transform,opacity] duration-300 ease-out md:hidden",
+          scrolled ? "pt-16" : "pt-20",
+          open
+            ? "translate-y-0 opacity-100"
+            : "pointer-events-none -translate-y-3 opacity-0",
         )}
       >
-        <div className="min-h-0">
-          <div className="container-base flex flex-col gap-1 py-3">
-            {links.map((l) => {
-              const active =
-                l.href === "/" ? pathname === "/" : pathname?.startsWith(l.href);
-              return (
-                <Link
-                  key={l.href}
-                  href={l.href}
-                  onClick={() => setOpen(false)}
-                  data-press
-                  className={cn(
-                    "rounded-lg px-3 py-3 text-sm font-medium transition-colors duration-200",
-                    active
-                      ? "bg-coffee-100/60 text-coffee-900"
-                      : "text-coffee-700 hover:bg-coffee-50 hover:text-coffee-900",
-                  )}
-                >
-                  {l.label}
-                </Link>
-              );
-            })}
-            <Link
-              href="/reservations"
-              onClick={() => setOpen(false)}
-              className="btn-primary mx-1 mt-2 justify-center"
-            >
-              Reserve a table
-            </Link>
-          </div>
-        </div>
+        <nav className="container-base flex flex-col gap-1 py-3">
+          {links.map((l) => {
+            const active =
+              l.href === "/" ? pathname === "/" : pathname?.startsWith(l.href);
+            return (
+              <Link
+                key={l.href}
+                href={l.href}
+                onClick={() => setOpen(false)}
+                data-press
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "rounded-lg px-3 py-3 text-sm font-medium transition-colors duration-200",
+                  active
+                    ? "bg-coffee-100/60 text-coffee-900"
+                    : "text-coffee-700 hover:bg-coffee-50 hover:text-coffee-900",
+                )}
+              >
+                {l.label}
+              </Link>
+            );
+          })}
+          <Link
+            href="/reservations"
+            onClick={() => setOpen(false)}
+            className="btn-primary mx-1 mt-2 justify-center"
+          >
+            Reserve a table
+          </Link>
+        </nav>
       </div>
-    </header>
+    </>
   );
 }

@@ -64,7 +64,10 @@ export default function ReviewsPage() {
         </div>
       </section>
 
-      <section className="bg-cream-100/40 py-14 sm:py-20">
+      <section
+        id="leave-a-review"
+        className="scroll-mt-24 bg-cream-100/40 py-14 sm:py-20"
+      >
         <div className="container-base grid gap-10 lg:grid-cols-[1fr_1.2fr] lg:items-start">
           <div>
             <p className="eyebrow">Have you been recently?</p>

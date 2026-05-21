@@ -14,12 +14,16 @@ const startTransform: Record<Variant, string> = {
 };
 
 /**
- * Scroll-triggered reveal that toggles visibility via IntersectionObserver
+ * Reveal-on-view that toggles visibility via IntersectionObserver
  * (cheap, no scroll listeners) and animates with GPU-friendly transforms.
  *
  * - Triggers once (disconnects observer after first hit) so re-scrolling
  *   doesn't re-play, keeping things calm on long pages.
  * - Honours `prefers-reduced-motion` by skipping the animation entirely.
+ * - `immediate` plays the intro on mount instead of waiting for scroll —
+ *   use it for above-the-fold content (e.g. the hero) that can sit just
+ *   below the fold on shorter screens and should never need a scroll to
+ *   appear.
  */
 export default function Reveal({
   children,
@@ -27,6 +31,7 @@ export default function Reveal({
   duration = 700,
   variant = "up",
   className,
+  immediate = false,
   as: Tag = "div",
 }: {
   children: React.ReactNode;
@@ -34,6 +39,7 @@ export default function Reveal({
   duration?: number;
   variant?: Variant;
   className?: string;
+  immediate?: boolean;
   as?: ElementType;
 }) {
   const ref = useRef<HTMLElement | null>(null);
@@ -45,6 +51,12 @@ export default function Reveal({
 
     // Respect user preference for reduced motion — skip entirely.
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setVisible(true);
+      return;
+    }
+
+    // Above-the-fold content reveals as soon as it mounts.
+    if (immediate) {
       setVisible(true);
       return;
     }
@@ -64,7 +76,7 @@ export default function Reveal({
     );
     io.observe(el);
     return () => io.disconnect();
-  }, []);
+  }, [immediate]);
 
   return (
     <Tag

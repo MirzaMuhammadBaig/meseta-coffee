@@ -12,13 +12,18 @@ import {
   X,
 } from "lucide-react";
 import { useCart } from "@/lib/cart/CartProvider";
-import { useStoreStatus } from "@/lib/store-status/StoreStatusProvider";
+import {
+  closedReasonMessage,
+  useLiveStoreStatus,
+} from "@/lib/store-status/useLiveStoreStatus";
 import { formatPkr, cn } from "@/lib/utils";
 
 export default function CartDrawer() {
   const { lines, count, subtotal, isOpen, close, setQty, remove, clear } =
     useCart();
-  const { isOpen: storeOpen, closedMessage } = useStoreStatus();
+  // Effective open state — admin switch combined with published hours.
+  const storeStatus = useLiveStoreStatus();
+  const storeOpen = storeStatus.open;
 
   // Lock body scroll while the drawer is open
   useEffect(() => {
@@ -208,7 +213,7 @@ export default function CartDrawer() {
                   Checkout unavailable
                 </button>
                 <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-center text-[11px] text-red-700">
-                  {closedMessage ?? "The store is closed for online orders right now."}
+                  {closedReasonMessage(storeStatus)}
                 </p>
               </>
             )}

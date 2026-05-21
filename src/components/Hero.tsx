@@ -33,11 +33,14 @@ export default function Hero() {
 
       <div className="container-base relative grid min-h-[calc(100svh-5rem)] items-center gap-10 py-16 sm:min-h-[80vh] sm:py-20 lg:min-h-[88vh] lg:grid-cols-[1.15fr_1fr] lg:gap-14 lg:py-24">
         <div className="max-w-3xl">
-          <Reveal delay={0} duration={700}>
+          {/* The hero IS the landing view — every piece reveals on load
+              (`immediate`), never on scroll, so nothing sits invisible
+              below the fold waiting for a scroll. */}
+          <Reveal immediate delay={0} duration={700}>
             <StoreStatusBadge />
           </Reveal>
 
-          <Reveal as="h1" duration={900} delay={100}>
+          <Reveal immediate as="h1" duration={900} delay={100}>
             <span className="mt-5 block font-display text-[2.5rem] leading-[1.05] text-cream-50 sm:mt-6 sm:text-6xl lg:text-7xl">
               Eatertainment,
               <br />
@@ -45,7 +48,7 @@ export default function Hero() {
             </span>
           </Reveal>
 
-          <Reveal delay={250}>
+          <Reveal immediate delay={250}>
             <p className="mt-5 max-w-xl text-base text-cream-100/85 sm:mt-6 sm:text-lg lg:text-xl">
               Specialty coffee, Turkish matcha, hand-pressed sandwiches and a
               board-game on every table. Rated{" "}
@@ -56,7 +59,7 @@ export default function Hero() {
             </p>
           </Reveal>
 
-          <Reveal delay={400}>
+          <Reveal immediate delay={400}>
             <div className="mt-8 flex flex-wrap items-center gap-3 sm:mt-10 sm:gap-4">
               <Link href="/menu" className="btn-gold w-full sm:w-auto">
                 Order coffee
@@ -70,13 +73,13 @@ export default function Hero() {
             </div>
           </Reveal>
 
-          <Reveal delay={500}>
+          <Reveal immediate delay={500}>
             <div className="mt-6 sm:mt-8">
               <LiveBrewing target={3} />
             </div>
           </Reveal>
 
-          <Reveal delay={650}>
+          <Reveal immediate delay={650}>
             <div className="mt-6 sm:mt-8">
               <AnimatedRating
                 rating={site.stats.googleRating}
@@ -87,7 +90,13 @@ export default function Hero() {
         </div>
 
         {/* Animated coffee cup — large beside text on desktop, below on mobile */}
-        <Reveal variant="scale" duration={1100} delay={400} className="mx-auto flex justify-center lg:justify-end">
+        <Reveal
+          immediate
+          variant="scale"
+          duration={1100}
+          delay={400}
+          className="mx-auto flex justify-center lg:justify-end"
+        >
           <HeroCup />
         </Reveal>
       </div>

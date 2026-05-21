@@ -6,6 +6,7 @@ import StoreClosedBanner from "@/components/StoreClosedBanner";
 import { CartProvider } from "@/lib/cart/CartProvider";
 import { StoreStatusProvider } from "@/lib/store-status/StoreStatusProvider";
 import { getStoreSettings } from "@/lib/admin/store";
+import { getNextOpening, isWithinHours } from "@/lib/hours";
 
 // Always render with fresh store-settings — so when the admin flips
 // open/closed or updates the announcement, the public site reflects it
@@ -18,22 +19,40 @@ export default async function SiteLayout({
   children: React.ReactNode;
 }) {
   const settings = await getStoreSettings().catch(() => null);
-  const isClosed = !!(settings && !settings.is_open);
+  const adminOpen = settings?.is_open ?? true;
+  const withinHours = isWithinHours();
+
+  // Closed for EITHER reason: the admin's manual switch, or being
+  // outside the published opening hours.
+  const manuallyClosed = !adminOpen;
+  const afterHours = adminOpen && !withinHours;
+  const isClosed = manuallyClosed || afterHours;
+
+  // Banner copy: a manual close shows the admin's message; an after-hours
+  // close gets an auto schedule message ("we reopen tomorrow at 9 AM").
+  let closedBannerMessage = settings?.closed_message ?? null;
+  if (afterHours) {
+    const next = getNextOpening();
+    closedBannerMessage = next
+      ? `We are closed right now. We reopen ${next.dayLabel} at ${next.time}.`
+      : "We are closed right now.";
+  }
+
   const showAnnouncement = !!(
     settings?.show_announcement && settings.announcement_text
   );
 
   return (
+    // `isOpen` here is the *raw* admin switch — `useLiveStoreStatus`
+    // combines it with the published hours itself.
     <StoreStatusProvider
       value={{
-        isOpen: settings?.is_open ?? true,
+        isOpen: adminOpen,
         closedMessage: settings?.closed_message ?? null,
       }}
     >
       <CartProvider>
-        {isClosed && (
-          <StoreClosedBanner message={settings?.closed_message ?? null} />
-        )}
+        {isClosed && <StoreClosedBanner message={closedBannerMessage} />}
         {showAnnouncement && (
           <StoreClosedBanner
             tone="info"

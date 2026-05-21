@@ -12,7 +12,10 @@ import {
   Store,
 } from "lucide-react";
 import { useCart } from "@/lib/cart/CartProvider";
-import { useStoreStatus } from "@/lib/store-status/StoreStatusProvider";
+import {
+  closedReasonMessage,
+  useLiveStoreStatus,
+} from "@/lib/store-status/useLiveStoreStatus";
 import PaymentMethodPicker, {
   type PaymentMethod,
 } from "@/components/checkout/PaymentMethodPicker";
@@ -28,7 +31,9 @@ function sanitize(e: React.ChangeEvent<HTMLInputElement>, pattern: RegExp) {
 export default function CheckoutPage() {
   const router = useRouter();
   const { lines, count, subtotal, clear } = useCart();
-  const { isOpen: storeOpen, closedMessage } = useStoreStatus();
+  // Effective open state — admin switch combined with published hours.
+  const storeStatus = useLiveStoreStatus();
+  const storeOpen = storeStatus.open;
 
   const [method, setMethod] = useState<PaymentMethod>("card");
   const [fulfilment, setFulfilment] = useState<"pickup" | "delivery">("pickup");
@@ -56,7 +61,7 @@ export default function CheckoutPage() {
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!storeOpen) {
-      setError(closedMessage ?? "The store is closed for online orders right now.");
+      setError(closedReasonMessage(storeStatus));
       return;
     }
     setSubmitting(true);

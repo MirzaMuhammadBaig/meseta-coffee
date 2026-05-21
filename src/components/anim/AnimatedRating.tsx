@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Star } from "lucide-react";
 
 /**
@@ -26,29 +26,16 @@ export default function AnimatedRating({
   reviewCount: number;
   duration?: number;
 }) {
-  const ref = useRef<HTMLDivElement | null>(null);
   const [progress, setProgress] = useState(0); // 0 → 1
   const [started, setStarted] = useState(false);
 
-  // The slow star-fill is a core part of the hero experience, so it plays
-  // for everyone — it's a gentle, non-flashing effect, not the kind that
-  // reduce-motion is meant to suppress.
+  // The widget lives in the hero (the landing view), so the fill starts
+  // on mount — never waiting for a scroll. The slow star-fill is a core
+  // part of the experience and plays for everyone; it's a gentle,
+  // non-flashing effect, not the kind reduce-motion is meant to suppress.
   useEffect(() => {
-    const el = ref.current;
-    if (!el || started) return;
-
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setStarted(true);
-          io.disconnect();
-        }
-      },
-      { threshold: 0.3 },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [started]);
+    setStarted(true);
+  }, []);
 
   useEffect(() => {
     if (!started) return;
@@ -74,10 +61,7 @@ export default function AnimatedRating({
   const fillPercent = (currentRating / 5) * 100;
 
   return (
-    <div
-      ref={ref}
-      className="group/stars flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-cream-100/80 sm:gap-x-6"
-    >
+    <div className="group/stars flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-cream-100/80 sm:gap-x-6">
       <div className="relative inline-flex items-center gap-1.5" aria-hidden>
         {/* Layer 1 — empty star outlines */}
         <div className="flex items-center gap-1.5">

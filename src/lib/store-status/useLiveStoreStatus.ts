@@ -63,3 +63,18 @@ export function nextWhenPhrase(status: LiveStatus): string {
   if (n.dayLabel === "tomorrow") return `tomorrow at ${n.time}`;
   return `${n.dayLabel} at ${n.time}`;
 }
+
+/**
+ * Best customer-facing sentence for *why* ordering is unavailable —
+ * the admin's custom message for a manual close, or an auto schedule
+ * message when the shop is simply outside its published hours.
+ */
+export function closedReasonMessage(status: LiveStatus): string {
+  if (status.open) return "";
+  if (status.reason === "manually_closed") {
+    return status.closedMessage?.trim()
+      ? status.closedMessage
+      : "The store is closed for online orders right now.";
+  }
+  return `We are closed right now — we reopen ${nextWhenPhrase(status)}.`;
+}
