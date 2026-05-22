@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { LogOut, Menu, Power, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AdminUser } from "@/lib/admin/auth";
@@ -112,56 +113,64 @@ export default function AdminTopBar({
         </div>
       </header>
 
-      {/* Reopen confirmation modal — only shown when currently closed */}
-      {showReopen && !isOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-coffee-900/60 p-4 backdrop-blur-sm"
-          onClick={() => setShowReopen(false)}
-        >
+      {/* Reopen confirmation modal — only shown when currently closed.
+          Portaled to <body> so it's always centred on the viewport and
+          can never be shifted/clipped by the admin layout. */}
+      {showReopen &&
+        !isOpen &&
+        typeof document !== "undefined" &&
+        createPortal(
           <div
-            onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md rounded-3xl bg-cream-50 p-6 shadow-2xl sm:p-7"
+            className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-coffee-900/60 p-4 backdrop-blur-sm"
+            onClick={() => setShowReopen(false)}
           >
-            <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-matcha-500/15 text-matcha-600">
-                <Power className="h-5 w-5" />
-              </span>
-              <h2 className="font-display text-xl text-coffee-800">
-                Reopen the store?
-              </h2>
-            </div>
-            <p className="mt-3 text-sm text-coffee-500">
-              Customers will be able to place orders immediately. The closed
-              banner on the public site will disappear.
-            </p>
-            {closedMessage && (
-              <p className="mt-3 rounded-xl bg-cream-100/70 p-3 text-xs text-coffee-500">
-                Was showing:{" "}
-                <span className="italic text-coffee-700">"{closedMessage}"</span>
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className="my-auto w-full max-w-md rounded-3xl bg-cream-50 p-6 shadow-2xl"
+            >
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-matcha-500/15 text-matcha-600">
+                  <Power className="h-5 w-5" />
+                </span>
+                <h2 className="font-display text-xl text-coffee-800">
+                  Reopen the store?
+                </h2>
+              </div>
+              <p className="mt-3 text-sm text-coffee-500">
+                Customers will be able to place orders immediately. The closed
+                banner on the public site will disappear.
               </p>
-            )}
+              {closedMessage && (
+                <p className="mt-3 rounded-xl bg-cream-100/70 p-3 text-xs text-coffee-500">
+                  Was showing:{" "}
+                  <span className="italic text-coffee-700">
+                    &quot;{closedMessage}&quot;
+                  </span>
+                </p>
+              )}
 
-            <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                onClick={() => setShowReopen(false)}
-                className="btn-ghost"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={pending}
-                onClick={reopen}
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-matcha-600 px-5 py-2.5 text-sm font-semibold uppercase tracking-[0.18em] text-cream-50 transition hover:bg-matcha-500 disabled:opacity-60"
-              >
-                <Power className="h-4 w-4" />
-                {pending ? "Reopening…" : "Open store"}
-              </button>
+              <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowReopen(false)}
+                  className="inline-flex w-full items-center justify-center rounded-full border border-coffee-200 px-5 py-2.5 text-sm font-semibold uppercase tracking-[0.18em] text-coffee-600 transition hover:bg-coffee-100 sm:w-auto"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={reopen}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-matcha-600 px-5 py-2.5 text-sm font-semibold uppercase tracking-[0.18em] text-cream-50 transition hover:bg-matcha-500 disabled:opacity-60 sm:w-auto"
+                >
+                  <Power className="h-4 w-4" />
+                  {pending ? "Reopening…" : "Open store"}
+                </button>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
     </>
   );
 }

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import { Coffee } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -30,11 +31,23 @@ async function signIn(formData: FormData) {
   // so the check is correctly scoped to this user and does NOT depend on
   // the freshly-set auth cookie being readable yet (a fresh client here
   // could miss it and wrongly reject a valid admin).
-  const { data: adminRow } = await supabase
+  const { data: adminRow, error: adminError } = await supabase
     .from("admin_users")
     .select("id")
     .eq("id", data.user.id)
     .maybeSingle();
+
+  // A failed query (network / RLS / missing table) is NOT proof the user
+  // isn't an admin — don't lock a legitimate admin out over a transient
+  // error. Only a successful query that returns no row means "not admin".
+  if (adminError) {
+    await supabase.auth.signOut();
+    redirect(
+      `/admin/login?error=${encodeURIComponent(
+        "Couldn't verify admin access right now. Please try again.",
+      )}`,
+    );
+  }
 
   if (!adminRow) {
     await supabase.auth.signOut();
@@ -45,6 +58,15 @@ async function signIn(formData: FormData) {
     );
   }
 
+  // The sign-in above set fresh Supabase auth cookies on the response.
+  // Revalidate before redirecting so the client router renders /admin
+  // fresh with the new session. Without this, the router can replay a
+  // cached "logged-out" result for /admin — the redirect-to-/admin/login
+  // that requireAdmin() produced for an earlier anonymous visit — and
+  // bounce the user straight back to the login page despite being
+  // signed in. Every other admin action revalidates before redirecting;
+  // this one must too.
+  revalidatePath("/", "layout");
   redirect("/admin");
 }
 
