@@ -50,36 +50,18 @@ export default async function AdminSettingsPage({
       <form action={updateStoreSettings} className="grid gap-6">
         <section className="rounded-2xl bg-white p-6 shadow-[0_8px_30px_-18px_rgba(66,41,26,0.18)] ring-1 ring-coffee-100">
           <h2 className="font-display text-xl text-coffee-800">
-            Announcement banner
+            Closed-store message
           </h2>
           <p className="mt-1 text-sm text-coffee-500">
-            Shown across the public site, above the navbar.
-          </p>
-          <div className="mt-5">
-            <textarea
-              name="announcement_text"
-              rows={2}
-              defaultValue={settings.announcement_text ?? ""}
-              placeholder="Free brownie with every cold brew this week!"
-              className="input resize-none"
-            />
-            <p className="mt-2 text-xs text-coffee-500">
-              Type a message to show the banner — leave it empty to hide it.
-            </p>
-          </div>
-
-          <h3 className="mt-8 font-display text-lg text-coffee-800">
-            Closed-store message
-          </h3>
-          <p className="mt-1 text-sm text-coffee-500">
-            Used when the store is toggled off from the top bar.
+            Shown on the banner when the store is toggled off. The
+            site-wide announcement banner now has its own page.
           </p>
           <textarea
             name="closed_message"
             rows={2}
             defaultValue={settings.closed_message ?? ""}
             placeholder="We're closed right now. Back tomorrow at 9am."
-            className="input mt-3 resize-none"
+            className="input mt-4 resize-none"
           />
         </section>
 

@@ -9,6 +9,7 @@ import {
   CreditCard,
   Inbox,
   LayoutDashboard,
+  Megaphone,
   MessageSquareText,
   Power,
   Settings,
@@ -53,6 +54,7 @@ const groups: {
     label: "Configuration",
     items: [
       { href: "/admin/store-status", label: "Store status", icon: Power },
+      { href: "/admin/announcement", label: "Announcement", icon: Megaphone },
       { href: "/admin/settings", label: "Settings", icon: Settings },
     ],
   },

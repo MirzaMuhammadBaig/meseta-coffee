@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Coffee, LogIn } from "lucide-react";
+import { Coffee } from "lucide-react";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentAdmin } from "@/lib/admin/auth";
+import LoginButton from "@/components/admin/LoginButton";
 
 export const metadata = { title: "Admin sign-in", robots: { index: false } };
 
@@ -109,13 +110,7 @@ export default async function AdminLoginPage({
             </div>
           </div>
 
-          <button
-            type="submit"
-            className="btn-primary mt-7 w-full justify-center"
-          >
-            <LogIn className="mr-2 h-4 w-4" />
-            Sign in
-          </button>
+          <LoginButton />
 
           <p className="mt-6 text-center text-xs text-coffee-400">
             Need an account? Ask the owner to add you via Supabase Auth.

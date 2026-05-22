@@ -8,7 +8,6 @@ import { requireAdmin } from "@/lib/admin/auth";
 export type StoreSettings = {
   is_open: boolean;
   closed_message: string | null;
-  closed_until: string | null;
   show_announcement: boolean;
   announcement_text: string | null;
   hours: { day: string; open: string; close: string }[];
@@ -23,11 +22,11 @@ export type StoreSettings = {
 
 export async function getStoreSettings(): Promise<StoreSettings> {
   const supabase = createSupabaseServerClient();
+  // `select("*")` (not an explicit column list) so a single missing /
+  // not-yet-migrated column can never break the whole settings read.
   const { data } = await supabase
     .from("store_settings")
-    .select(
-      "is_open, closed_message, closed_until, show_announcement, announcement_text, hours, contact_phone, contact_whatsapp, contact_email, social_instagram, social_facebook, accept_card_payments, accept_cash_payments",
-    )
+    .select("*")
     .eq("id", 1)
     .maybeSingle();
 
@@ -35,7 +34,6 @@ export async function getStoreSettings(): Promise<StoreSettings> {
     (data as StoreSettings) ?? {
       is_open: true,
       closed_message: null,
-      closed_until: null,
       show_announcement: false,
       announcement_text: null,
       hours: [],
@@ -66,28 +64,18 @@ export async function setStoreOpen(isOpen: boolean, closedMessage?: string) {
 }
 
 /**
- * Server action used by the dedicated Store status page.
- * Accepts is_open, closed_message, closed_until, show_announcement,
- * announcement_text — and redirects back with a flash flag.
+ * Server action for the dedicated Store status page — open/closed
+ * toggle + the closed-store reason. (The announcement banner has its
+ * own page + action, `updateAnnouncement`.)
  */
 export async function updateStoreStatus(fd: FormData) {
   await requireAdmin();
   const supabase = createSupabaseServerClient();
 
-  const isOpen = fd.get("is_open") === "true";
-  const closedUntilRaw = String(fd.get("closed_until") ?? "").trim();
-  const announcementText =
-    String(fd.get("announcement_text") ?? "").trim() || null;
-
   const update = {
-    is_open: isOpen,
+    is_open: fd.get("is_open") === "true",
     closed_message:
       String(fd.get("closed_message") ?? "").trim() || null,
-    closed_until: closedUntilRaw ? new Date(closedUntilRaw).toISOString() : null,
-    // The banner shows whenever there is text — keep the boolean column
-    // in sync so it always reflects reality.
-    announcement_text: announcementText,
-    show_announcement: announcementText !== null,
   };
 
   const { error } = await supabase
@@ -104,6 +92,37 @@ export async function updateStoreStatus(fd: FormData) {
   revalidatePath("/", "layout");
   revalidatePath("/admin/store-status");
   redirect("/admin/store-status?saved=1");
+}
+
+/**
+ * Server action for the dedicated Announcement page. The site-wide
+ * banner shows whenever there is text — `show_announcement` is kept in
+ * sync with that so the boolean column always reflects reality.
+ */
+export async function updateAnnouncement(fd: FormData) {
+  await requireAdmin();
+  const supabase = createSupabaseServerClient();
+
+  const announcementText =
+    String(fd.get("announcement_text") ?? "").trim() || null;
+
+  const { error } = await supabase
+    .from("store_settings")
+    .update({
+      announcement_text: announcementText,
+      show_announcement: announcementText !== null,
+    })
+    .eq("id", 1);
+
+  if (error) {
+    redirect(
+      `/admin/announcement?error=${encodeURIComponent(error.message)}`,
+    );
+  }
+
+  revalidatePath("/", "layout");
+  revalidatePath("/admin/announcement");
+  redirect("/admin/announcement?saved=1");
 }
 
 export async function updateStoreSettings(fd: FormData) {
@@ -125,15 +144,9 @@ export async function updateStoreSettings(fd: FormData) {
     close: String(fd.get(`close_${day}`) ?? ""),
   }));
 
-  const announcementText =
-    String(fd.get("announcement_text") ?? "").trim() || null;
-
   const update = {
     closed_message:
       String(fd.get("closed_message") ?? "").trim() || null,
-    // The banner shows whenever there is text — keep the boolean in sync.
-    announcement_text: announcementText,
-    show_announcement: announcementText !== null,
     hours,
     contact_phone:
       String(fd.get("contact_phone") ?? "").trim() || null,

@@ -1,38 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle, Megaphone, Power, Save } from "lucide-react";
+import { AlertTriangle, Power, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Props = {
   initialIsOpen: boolean;
   initialClosedMessage: string | null;
-  initialClosedUntil: string | null;
-  initialAnnouncementText: string | null;
   onSave: (fd: FormData) => void | Promise<void>;
 };
-
-function toDateTimeLocal(iso: string | null) {
-  if (!iso) return "";
-  // datetime-local needs `YYYY-MM-DDTHH:MM` in local time.
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
 
 export default function StoreStatusForm({
   initialIsOpen,
   initialClosedMessage,
-  initialClosedUntil,
-  initialAnnouncementText,
   onSave,
 }: Props) {
   // Local state so the preview pane updates as the admin types.
   const [isOpen, setIsOpen] = useState(initialIsOpen);
   const [reason, setReason] = useState(initialClosedMessage ?? "");
-  const [announcement, setAnnouncement] = useState(
-    initialAnnouncementText ?? "",
-  );
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr] lg:gap-8">
@@ -104,38 +89,6 @@ export default function StoreStatusForm({
           />
         </div>
 
-        {/* Reopening at */}
-        <div className="mt-5">
-          <label className="text-xs font-semibold uppercase tracking-[0.2em] text-coffee-500">
-            Reopening at (optional)
-          </label>
-          <input
-            type="datetime-local"
-            name="closed_until"
-            defaultValue={toDateTimeLocal(initialClosedUntil)}
-            className="input mt-2"
-          />
-        </div>
-
-        {/* Announcement */}
-        <div className="mt-5">
-          <label className="text-xs font-semibold uppercase tracking-[0.2em] text-coffee-500">
-            Site-wide announcement banner
-          </label>
-          <textarea
-            name="announcement_text"
-            rows={3}
-            value={announcement}
-            onChange={(e) => setAnnouncement(e.target.value)}
-            placeholder="E.g. Free brownie with every cold brew this week!"
-            className="input mt-2 resize-none"
-          />
-          <p className="mt-2 text-xs text-coffee-500">
-            Shown at the top of every page on the public site as soon as you
-            save. Leave it empty to hide the banner.
-          </p>
-        </div>
-
         {/* Save */}
         <div className="mt-7 flex justify-end">
           <button
@@ -172,22 +125,11 @@ export default function StoreStatusForm({
           </div>
         )}
 
-        {/* Announcement preview */}
-        {announcement.trim() && (
-          <div className="mt-3 rounded-2xl bg-gold-500 px-5 py-3 text-coffee-900">
-            <div className="flex items-start gap-3">
-              <Megaphone className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={2} />
-              <p className="text-sm font-medium">{announcement}</p>
-            </div>
-          </div>
-        )}
-
-        {/* Empty-state when nothing would appear */}
-        {isOpen && !announcement.trim() && (
+        {/* Empty-state when the store is open */}
+        {isOpen && (
           <div className="mt-5 rounded-2xl border border-dashed border-coffee-200 p-6 text-center">
             <p className="text-sm text-coffee-500">
-              No banner is shown right now — the store is open and there's no
-              announcement set.
+              No closed banner is shown — the store is open.
             </p>
           </div>
         )}
