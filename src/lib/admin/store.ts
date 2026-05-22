@@ -76,15 +76,18 @@ export async function updateStoreStatus(fd: FormData) {
 
   const isOpen = fd.get("is_open") === "true";
   const closedUntilRaw = String(fd.get("closed_until") ?? "").trim();
+  const announcementText =
+    String(fd.get("announcement_text") ?? "").trim() || null;
 
   const update = {
     is_open: isOpen,
     closed_message:
       String(fd.get("closed_message") ?? "").trim() || null,
     closed_until: closedUntilRaw ? new Date(closedUntilRaw).toISOString() : null,
-    show_announcement: fd.get("show_announcement") === "on",
-    announcement_text:
-      String(fd.get("announcement_text") ?? "").trim() || null,
+    // The banner shows whenever there is text — keep the boolean column
+    // in sync so it always reflects reality.
+    announcement_text: announcementText,
+    show_announcement: announcementText !== null,
   };
 
   const { error } = await supabase
@@ -122,12 +125,15 @@ export async function updateStoreSettings(fd: FormData) {
     close: String(fd.get(`close_${day}`) ?? ""),
   }));
 
+  const announcementText =
+    String(fd.get("announcement_text") ?? "").trim() || null;
+
   const update = {
     closed_message:
       String(fd.get("closed_message") ?? "").trim() || null,
-    show_announcement: fd.get("show_announcement") === "on",
-    announcement_text:
-      String(fd.get("announcement_text") ?? "").trim() || null,
+    // The banner shows whenever there is text — keep the boolean in sync.
+    announcement_text: announcementText,
+    show_announcement: announcementText !== null,
     hours,
     contact_phone:
       String(fd.get("contact_phone") ?? "").trim() || null,

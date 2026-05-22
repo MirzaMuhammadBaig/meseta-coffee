@@ -8,7 +8,6 @@ type Props = {
   initialIsOpen: boolean;
   initialClosedMessage: string | null;
   initialClosedUntil: string | null;
-  initialShowAnnouncement: boolean;
   initialAnnouncementText: string | null;
   onSave: (fd: FormData) => void | Promise<void>;
 };
@@ -25,16 +24,12 @@ export default function StoreStatusForm({
   initialIsOpen,
   initialClosedMessage,
   initialClosedUntil,
-  initialShowAnnouncement,
   initialAnnouncementText,
   onSave,
 }: Props) {
   // Local state so the preview pane updates as the admin types.
   const [isOpen, setIsOpen] = useState(initialIsOpen);
   const [reason, setReason] = useState(initialClosedMessage ?? "");
-  const [showAnnouncement, setShowAnnouncement] = useState(
-    initialShowAnnouncement,
-  );
   const [announcement, setAnnouncement] = useState(
     initialAnnouncementText ?? "",
   );
@@ -125,26 +120,20 @@ export default function StoreStatusForm({
         {/* Announcement */}
         <div className="mt-5">
           <label className="text-xs font-semibold uppercase tracking-[0.2em] text-coffee-500">
-            Site-wide announcement (shown on banner when closed)
+            Site-wide announcement banner
           </label>
           <textarea
             name="announcement_text"
             rows={3}
             value={announcement}
             onChange={(e) => setAnnouncement(e.target.value)}
-            placeholder="Anything else customers should know?"
+            placeholder="E.g. Free brownie with every cold brew this week!"
             className="input mt-2 resize-none"
           />
-          <label className="mt-2 inline-flex cursor-pointer items-center gap-2 text-xs text-coffee-500">
-            <input
-              type="checkbox"
-              name="show_announcement"
-              checked={showAnnouncement}
-              onChange={(e) => setShowAnnouncement(e.target.checked)}
-              className="h-3.5 w-3.5 rounded border-coffee-200 text-coffee-700"
-            />
-            Show this announcement even when the store is open
-          </label>
+          <p className="mt-2 text-xs text-coffee-500">
+            Shown at the top of every page on the public site as soon as you
+            save. Leave it empty to hide the banner.
+          </p>
         </div>
 
         {/* Save */}
@@ -184,7 +173,7 @@ export default function StoreStatusForm({
         )}
 
         {/* Announcement preview */}
-        {showAnnouncement && announcement && (
+        {announcement.trim() && (
           <div className="mt-3 rounded-2xl bg-gold-500 px-5 py-3 text-coffee-900">
             <div className="flex items-start gap-3">
               <Megaphone className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={2} />
@@ -194,7 +183,7 @@ export default function StoreStatusForm({
         )}
 
         {/* Empty-state when nothing would appear */}
-        {isOpen && !(showAnnouncement && announcement) && (
+        {isOpen && !announcement.trim() && (
           <div className="mt-5 rounded-2xl border border-dashed border-coffee-200 p-6 text-center">
             <p className="text-sm text-coffee-500">
               No banner is shown right now — the store is open and there's no

@@ -8,21 +8,42 @@ export const metadata = { title: "Admin sign-in", robots: { index: false } };
 
 async function signIn(formData: FormData) {
   "use server";
-  const email = String(formData.get("email") ?? "");
+  const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
+
   const supabase = createSupabaseServerClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) {
-    redirect(`/admin/login?error=${encodeURIComponent(error.message)}`);
-  }
-  // Confirm they're actually in admin_users; otherwise sign back out.
-  const admin = await getCurrentAdmin();
-  if (!admin) {
-    await supabase.auth.signOut();
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+  if (error || !data.user) {
     redirect(
-      `/admin/login?error=${encodeURIComponent("This account is not an admin.")}`,
+      `/admin/login?error=${encodeURIComponent(
+        error?.message ?? "Could not sign in. Check your email and password.",
+      )}`,
     );
   }
+
+  // Confirm they're registered in admin_users. We query with the SAME
+  // client — it already holds the session in memory from the sign-in,
+  // so the check is correctly scoped to this user and does NOT depend on
+  // the freshly-set auth cookie being readable yet (a fresh client here
+  // could miss it and wrongly reject a valid admin).
+  const { data: adminRow } = await supabase
+    .from("admin_users")
+    .select("id")
+    .eq("id", data.user.id)
+    .maybeSingle();
+
+  if (!adminRow) {
+    await supabase.auth.signOut();
+    redirect(
+      `/admin/login?error=${encodeURIComponent(
+        "This account is not registered as an admin. Ask the owner to add it.",
+      )}`,
+    );
+  }
+
   redirect("/admin");
 }
 

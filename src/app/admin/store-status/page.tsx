@@ -37,7 +37,6 @@ export default async function AdminStoreStatusPage({
         initialIsOpen={settings.is_open}
         initialClosedMessage={settings.closed_message}
         initialClosedUntil={settings.closed_until}
-        initialShowAnnouncement={settings.show_announcement}
         initialAnnouncementText={settings.announcement_text}
         onSave={updateStoreStatus}
       />

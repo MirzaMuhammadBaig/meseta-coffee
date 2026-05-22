@@ -29,18 +29,21 @@ export default async function SiteLayout({
   const isClosed = manuallyClosed || afterHours;
 
   // Banner copy: a manual close shows the admin's message; an after-hours
-  // close gets an auto schedule message ("we reopen tomorrow at 9 AM").
+  // close gets an auto schedule message. The banner already says "We are
+  // temporarily closed." in bold, so the message only needs the reopen
+  // time — no redundant "we are closed right now" line.
   let closedBannerMessage = settings?.closed_message ?? null;
   if (afterHours) {
     const next = getNextOpening();
     closedBannerMessage = next
-      ? `We are closed right now. We reopen ${next.dayLabel} at ${next.time}.`
-      : "We are closed right now.";
+      ? `We reopen ${next.dayLabel} at ${next.time}.`
+      : "We will reopen soon.";
   }
 
-  const showAnnouncement = !!(
-    settings?.show_announcement && settings.announcement_text
-  );
+  // The announcement banner shows whenever there IS announcement text —
+  // setting a message is all the admin needs to do, no extra toggle.
+  const announcementText = settings?.announcement_text?.trim() || null;
+  const showAnnouncement = !!announcementText;
 
   return (
     // `isOpen` here is the *raw* admin switch — `useLiveStoreStatus`
@@ -54,10 +57,7 @@ export default async function SiteLayout({
       <CartProvider>
         {isClosed && <StoreClosedBanner message={closedBannerMessage} />}
         {showAnnouncement && (
-          <StoreClosedBanner
-            tone="info"
-            message={settings!.announcement_text}
-          />
+          <StoreClosedBanner tone="info" message={announcementText} />
         )}
         <Navbar />
         <main className="min-h-[60vh]">{children}</main>

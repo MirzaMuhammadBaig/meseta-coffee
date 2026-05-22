@@ -55,18 +55,7 @@ export default async function AdminSettingsPage({
           <p className="mt-1 text-sm text-coffee-500">
             Shown across the public site, above the navbar.
           </p>
-          <div className="mt-5 space-y-4">
-            <label className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                name="show_announcement"
-                defaultChecked={settings.show_announcement}
-                className="h-4 w-4 rounded border-coffee-200 text-coffee-700"
-              />
-              <span className="text-sm font-semibold text-coffee-800">
-                Show announcement banner
-              </span>
-            </label>
+          <div className="mt-5">
             <textarea
               name="announcement_text"
               rows={2}
@@ -74,6 +63,9 @@ export default async function AdminSettingsPage({
               placeholder="Free brownie with every cold brew this week!"
               className="input resize-none"
             />
+            <p className="mt-2 text-xs text-coffee-500">
+              Type a message to show the banner — leave it empty to hide it.
+            </p>
           </div>
 
           <h3 className="mt-8 font-display text-lg text-coffee-800">
