@@ -160,7 +160,7 @@ export default async function AdminReservationsPage({
                     </span>
                   </td>
                   <td className="px-5 py-3">
-                    <div className="flex flex-wrap justify-end gap-1.5">
+                    <div className="flex justify-end gap-1.5 whitespace-nowrap">
                       {STATUSES.map((s) => (
                         <form key={s.value} action={setStatus.bind(null, r.id, s.value)}>
                           <button

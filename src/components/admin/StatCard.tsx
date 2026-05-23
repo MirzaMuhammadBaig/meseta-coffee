@@ -53,7 +53,7 @@ export default function StatCard({
           </span>
         )}
       </div>
-      <p className="mt-4 font-display text-3xl text-coffee-800 sm:text-4xl">
+      <p className="mt-4 truncate font-display text-2xl tabular-nums text-coffee-800 sm:text-3xl lg:text-4xl">
         {value}
       </p>
       <div className="mt-2 flex items-center gap-2 text-xs">

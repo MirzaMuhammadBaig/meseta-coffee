@@ -78,19 +78,19 @@ export default async function AdminSettingsPage({
                   <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-coffee-400">
                     {day}
                   </p>
-                  <div className="mt-2 flex items-center gap-2">
+                  <div className="mt-2 flex items-center gap-1.5">
                     <input
                       type="time"
                       name={`open_${day}`}
                       defaultValue={h?.open ?? "09:00"}
-                      className="input"
+                      className="input min-w-0 flex-1 px-2"
                     />
-                    <span className="text-coffee-400">→</span>
+                    <span className="shrink-0 text-coffee-400">→</span>
                     <input
                       type="time"
                       name={`close_${day}`}
                       defaultValue={h?.close ?? "01:00"}
-                      className="input"
+                      className="input min-w-0 flex-1 px-2"
                     />
                   </div>
                 </div>

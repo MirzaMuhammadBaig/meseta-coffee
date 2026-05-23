@@ -60,7 +60,7 @@ export default async function SiteLayout({
           <StoreClosedBanner tone="info" message={announcementText} />
         )}
         <Navbar />
-        <main className="min-h-[60vh]">{children}</main>
+        <main className="min-h-[60vh] overflow-x-clip">{children}</main>
         <Footer />
         <CartFab />
         <CartDrawer />

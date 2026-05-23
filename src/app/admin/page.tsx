@@ -177,8 +177,8 @@ export default async function AdminDashboardPage() {
       <div className="mt-8 grid gap-6 lg:grid-cols-3">
         {/* Recent orders */}
         <section className="rounded-2xl bg-white p-5 shadow-[0_8px_30px_-18px_rgba(66,41,26,0.18)] ring-1 ring-coffee-100 lg:col-span-2">
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+            <div className="min-w-0">
               <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-coffee-400">
                 Recent orders
               </p>
@@ -188,7 +188,7 @@ export default async function AdminDashboardPage() {
             </div>
             <Link
               href="/admin/orders"
-              className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.18em] text-coffee-600 hover:text-coffee-900"
+              className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold uppercase tracking-[0.18em] text-coffee-600 hover:text-coffee-900"
             >
               View all <ArrowUpRight className="h-3.5 w-3.5" />
             </Link>
