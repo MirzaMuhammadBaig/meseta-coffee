@@ -96,9 +96,15 @@ export default function CheckoutPage() {
         return;
       }
 
-      // Cash → straight to success
+      // Cash → straight to success. Pass fulfilment + payment so the
+      // confirmation page can show the right copy for what the customer
+      // actually chose.
       clear();
-      router.push(`/checkout/success?order=${data.order_number}`);
+      router.push(
+        `/checkout/success?order=${data.order_number}` +
+          `&fulfilment=${encodeURIComponent(fulfilment)}` +
+          `&payment=${encodeURIComponent(method)}`,
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
       setSubmitting(false);

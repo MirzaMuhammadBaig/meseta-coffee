@@ -10,6 +10,8 @@ import {
 import { menu } from "@/lib/data/menu";
 import { getStoreSettings } from "@/lib/admin/store";
 import { getNextOpening, isWithinHours } from "@/lib/hours";
+import { site } from "@/lib/data/site";
+import { nextAutoAdvanceAt } from "@/lib/admin/busyness-types";
 
 export const runtime = "nodejs";
 
@@ -124,6 +126,10 @@ export async function POST(req: Request) {
   // Two ways to be closed: the admin's manual switch, or simply being
   // outside the published opening hours. Both block the order.
   const settings = await getStoreSettings().catch(() => null);
+  const hours =
+    settings?.hours && settings.hours.length > 0
+      ? settings.hours
+      : site.hours;
   if (settings && !settings.is_open) {
     return NextResponse.json(
       {
@@ -134,8 +140,8 @@ export async function POST(req: Request) {
       { status: 503 },
     );
   }
-  if (!isWithinHours()) {
-    const next = getNextOpening();
+  if (!isWithinHours(hours)) {
+    const next = getNextOpening(hours);
     return NextResponse.json(
       {
         error: next
@@ -188,23 +194,56 @@ export async function POST(req: Request) {
   const supabase = createSupabaseServiceClient();
   const orderNumber = generateOrderNumber();
 
-  const { data: order, error: insertError } = await supabase
+  // Start the auto-progression timer for the freshly-placed order so it
+  // walks through accepted/preparing/ready on its own, paced by the
+  // admin's current busyness level.
+  const autoAdvanceAt = nextAutoAdvanceAt(
+    "placed",
+    settings?.busyness_level ?? "normal",
+    settings?.auto_progress_minutes ?? {
+      placed_to_accepted: 2,
+      accepted_to_preparing: 5,
+      preparing_to_ready: 5,
+    },
+  );
+
+  const baseRow = {
+    number: orderNumber,
+    customer_name: name,
+    customer_phone: phone,
+    customer_email: email,
+    fulfilment,
+    address,
+    items: lines,
+    subtotal_pkr: subtotal,
+    total_pkr: subtotal,
+    payment_method: paymentMethod,
+    notes,
+  };
+
+  let { data: order, error: insertError } = await supabase
     .from("orders")
-    .insert({
-      number: orderNumber,
-      customer_name: name,
-      customer_phone: phone,
-      customer_email: email,
-      fulfilment,
-      address,
-      items: lines,
-      subtotal_pkr: subtotal,
-      total_pkr: subtotal,
-      payment_method: paymentMethod,
-      notes,
-    })
+    .insert({ ...baseRow, auto_advance_at: autoAdvanceAt })
     .select("id, number")
     .single();
+
+  // Migration 007 not applied yet? Retry without the new column so the
+  // order still places — just no auto-progression.
+  if (
+    insertError &&
+    /auto_advance_at/i.test(insertError.message ?? "")
+  ) {
+    console.warn(
+      "[checkout] auto_advance_at column missing — retrying without it (apply migration 007).",
+    );
+    const retry = await supabase
+      .from("orders")
+      .insert(baseRow)
+      .select("id, number")
+      .single();
+    order = retry.data;
+    insertError = retry.error;
+  }
 
   if (insertError || !order) {
     console.error("[checkout] order insert failed", insertError);
@@ -237,7 +276,7 @@ export async function POST(req: Request) {
         orderId: order.number,
         amountPkr: subtotal,
         customer: { name, phone, email: email ?? undefined },
-        successUrl: `${siteUrl}/checkout/success?order=${order.number}`,
+        successUrl: `${siteUrl}/checkout/success?order=${order.number}&fulfilment=${fulfilment}&payment=card`,
         cancelUrl: `${siteUrl}/checkout/cancel?order=${order.number}`,
       });
 

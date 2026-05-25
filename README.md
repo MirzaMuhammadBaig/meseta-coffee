@@ -1,247 +1,525 @@
-# Meseta Coffee, meseta-coffee.com
+# Meseta Coffee — full-stack café platform
 
-A production-ready marketing & booking website for **Meseta Coffee** (Bahria Town Phase 4, Rawalpindi), built with **Next.js 14 (App Router)**, **Tailwind CSS** and **Supabase**.
+A production-ready public website + operator dashboard for **Meseta Coffee** (Bahria Town Phase 4, Rawalpindi). Built with **Next.js 14 (App Router)**, **Tailwind CSS**, **Supabase** (Auth + Postgres + RLS) and **Safepay** (Pakistan card payments).
 
-> 4.5★ from 1,072+ Google reviews · 8K+ on Instagram · Specialty coffee, Turkish matcha, hand-pressed sandwiches.
-
----
-
-## ✨ What's inside
-
-- **Pages**
-  - `/` : hero, story, bestsellers, eatertainment, live reviews, Instagram grid, map, CTA
-  - `/menu` : full menu, 6 categories, bestseller / signature badges
-  - `/about` : brand story, values, timeline
-  - `/gallery` : masonry-style photo grid
-  - `/reviews` : every Google / foodpanda / Instagram review on one page
-  - `/contact` : channels + contact form
-  - `/reservations` : table booking form
-  - `/menu/[slug]` : statically generated product detail pages
-  - `/checkout` : customer info + payment method picker + sticky order summary
-  - `/checkout/success`, `/checkout/cancel` : post-payment screens
-- **Cart + ordering**
-  - localStorage-persisted cart context, floating FAB, slide-in drawer
-  - **Card payments via Safepay** (sandbox + production), with cash-on-pickup as a fallback. Orders happen on-site — WhatsApp is reserved for support/contact, not checkout.
-- **API routes** (all persist to Supabase)
-  - `POST /api/contact` : saves to `contact_messages`
-  - `POST /api/reservations` : saves to `reservations`
-  - `POST /api/newsletter` : saves to `newsletter_subscribers`
-  - `POST /api/checkout` : saves to `orders`, creates a Safepay session when paying by card
-  - `POST /api/safepay/webhook` : receives Safepay payment events (HMAC-verified)
-- **SEO** : per-page metadata, OpenGraph, sitemap (`/sitemap.xml`) and robots (`/robots.txt`)
-- **Design** : custom Tailwind theme (coffee + cream + gold), Playfair Display + Inter, fully responsive, mobile menu
+> Online ordering, table reservations, contact + reviews on the customer side. Full inventory, deals, coupons, order pipeline, content management and a live store-status / busyness controller on the admin side.
 
 ---
 
-## 🚀 Quick start
+## Quick reference
+
+| | |
+|---|---|
+| **Live site** | https://meseta-coffee.netlify.app |
+| **Admin** | https://meseta-coffee.netlify.app/admin |
+| **Tech** | Next.js 14 (App Router), React 18, TypeScript, Tailwind CSS |
+| **Backend** | Supabase (Postgres, Auth, Row-Level Security), Netlify Functions (API routes) |
+| **Payments** | Safepay (sandbox + production), cash on pickup / delivery |
+| **Hosting** | Netlify |
+| **Timezone** | Asia/Karachi (PKT) — all hours-of-operation logic converts before comparing |
+
+---
+
+## Table of contents
+
+1. [Features](#features)
+2. [Tech stack](#tech-stack)
+3. [Local development](#local-development)
+4. [Environment variables](#environment-variables)
+5. [Database (Supabase)](#database-supabase)
+6. [Bootstrap admin user](#bootstrap-admin-user)
+7. [Safepay (card payments)](#safepay-card-payments)
+8. [Architecture & key concepts](#architecture--key-concepts)
+9. [Project structure](#project-structure)
+10. [Common admin workflows](#common-admin-workflows)
+11. [Customising](#customising)
+12. [Deployment](#deployment)
+13. [Troubleshooting](#troubleshooting)
+
+---
+
+## Features
+
+### Public site
+
+| Route | Page | Notes |
+|---|---|---|
+| `/` | Home | Hero with animated coffee cup, store status badge, live order count, brewing-process animation, featured menu, brewing ticker, reviews, Instagram tease, location |
+| `/menu` | Full menu | Live search with category filter, 18+ items in 6 categories, click-through to product detail |
+| `/menu/[slug]` | Product detail | Image, description, price, add-to-cart, related items |
+| `/about` | Our story | Brand timeline, values |
+| `/gallery` | Photos | Masonry grid with safe-image fallbacks |
+| `/reviews` | All reviews | 27+ reviews from Google, Foodpanda, Instagram, Facebook, Tripadvisor + customer review form |
+| `/contact` | Contact | Channel cards (call, WhatsApp, email, walk-in), opening hours, contact form |
+| `/reservations` | Book a table | Date/time, people, notes |
+| `/checkout` | Cart checkout | Customer info → fulfilment (pickup/delivery) → payment (card/cash) → submit |
+| `/checkout/success` | Confirmation | Fulfilment-aware copy, order number, print-friendly receipt, WhatsApp deep link |
+| `/checkout/cancel` | Cancelled | Friendly "no charge made, try again" page |
+
+**Cart + ordering**
+- Cart context with localStorage persistence; floating FAB; slide-in drawer with quantity controls.
+- Server-side re-pricing on every checkout (no client-side tampering possible).
+- **Card payments via Safepay** (sandbox + production); **cash on pickup / cash on delivery** label is fulfilment-aware.
+- Live store-status guard: checkout is blocked when the store is closed (manual switch OR outside published hours).
+
+**Static + dynamic content**
+- Static seed data (`src/lib/data/*.ts`) for menu, reviews, gallery — instant rendering, zero-database fallback.
+- Supabase override: when the DB has rows, the site reads from there. Falls back to seed on read errors.
+
+### Admin dashboard (`/admin`)
+
+Authenticated area for café staff. Protected by Supabase Auth + an `admin_users` membership check.
+
+| Section | What it does |
+|---|---|
+| **Dashboard** | KPI cards (revenue today, AOV, queue size, active menu items), busyness pill, recent orders (mobile cards + desktop table), 14-day order trend, attention-needed inbox, top items |
+| **Revenue** | Range tabs (Today / Yesterday / 7d / 30d / Month / All / Custom), per-day bar chart |
+| **Orders** | Filter by status, search by number/name/phone, click into detail to walk through state machine, quick **Call / WhatsApp customer** buttons |
+| **Reservations** | Filter + search + status chips (pending → confirmed / seated / cancelled / no-show) |
+| **Menu** | CRUD, bulk enable/disable, sort order, prices, images, tags |
+| **Deals** | Scheduled promotions (% / fixed, whole-menu / category / single item) |
+| **Coupons** | Discount codes with min spend, expiry, max-uses, redemption counter |
+| **Messages** | Contact-form inbox |
+| **Reviews** | Website reviews (admin-approved) + external reviews — split into two columns |
+| **Store status** | One-click open/close toggle with custom closed-message + live preview |
+| **Busyness** | Three-level pacing (Normal × 1 / Busy × 2 / Super busy × 3) + per-stage base minutes; drives auto-advance of the order state machine |
+| **Announcement** | Site-wide gold banner — type a message and it appears at the top of every public page |
+| **Settings** | Hours per day (24-hour inputs), contact channels, social links, payment-method toggles, closed-store message |
+
+**Always-visible controls** (in the topbar):
+- Status pill — green "Open" links to `/admin/store-status`; red "Closed" opens a reopen-confirmation modal that flips the switch with one click.
+- Sign-out button.
+
+---
+
+## Tech stack
+
+- **Framework** — Next.js 14 (App Router) + React 18 + TypeScript (strict).
+- **Styling** — Tailwind CSS with a custom theme (`coffee`, `cream`, `gold`, `matcha`) and custom keyframes for the hero cup, beans, latte art, marquee, badge glow.
+- **Database / Auth** — Supabase Postgres with Row-Level Security policies. Auth via Supabase's email/password.
+- **Server actions** — for admin form submits (Next.js App Router native).
+- **Payments** — Safepay v1 (Pakistan). HMAC-verified webhook.
+- **Animation** — IntersectionObserver-driven scroll reveals, `requestAnimationFrame`-throttled parallax (no scroll-event listeners), pure-SVG cup + latte art, CSS keyframes for the rest.
+- **Loader** — `<CoffeeLoader>` with anti-flash delayed fade-in (only appears on slow loads).
+- **Deploy** — Netlify (with `loading.tsx` route-level Suspense fallbacks).
+
+---
+
+## Local development
 
 ```bash
-# 1. Install deps
+# 1. Install dependencies
 npm install
 
-# 2. Copy env and fill in your Supabase keys
+# 2. Copy env and fill in credentials
 cp .env.example .env.local
+# Edit .env.local with your Supabase + Safepay keys (see next section)
 
-# 3. Run dev server
+# 3. Run the dev server
 npm run dev
 ```
 
 Open <http://localhost:3000>.
 
----
-
-## 🔑 Environment variables
-
-Drop these into `.env.local`:
+**Other scripts:**
 
 ```bash
-NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...           # public, browser-safe
-SUPABASE_SERVICE_ROLE_KEY=eyJ...               # SERVER ONLY, do not expose
-NEXT_PUBLIC_SITE_URL=http://localhost:3000     # used for OG/sitemap
-```
-
-**Card payments via Safepay** (test mode works out of the box once you fill these):
-
-```bash
-SAFEPAY_ENV=sandbox                              # sandbox | production
-SAFEPAY_API_KEY=sec_xxxxxxxxxxxxxxxxxxxx         # client key
-SAFEPAY_API_SECRET=xxxxxxxxxxxxxxxxxxxx          # merchant secret
-SAFEPAY_WEBHOOK_SECRET=                          # set after creating the webhook
-```
-
-Until those are filled in, the card option in checkout returns a friendly *"Card payments are not configured yet, please choose cash on pickup"* — so the rest of the flow keeps working.
-
-Optional:
-
-```bash
-GOOGLE_PLACES_API_KEY=          # to sync live Google reviews
-GOOGLE_PLACE_ID=
-RESEND_API_KEY=                 # for email notifications
-NOTIFY_EMAIL=hello@mesetacoffee.com
+npm run build       # production build
+npm run start       # serve the production build
+npx tsc --noEmit    # type-check only
+npm run lint        # eslint
 ```
 
 ---
 
-## 🗄️ Supabase setup
+## Environment variables
 
-1. Create a project at <https://supabase.com>.
-2. Settings → API → copy **Project URL**, **anon public** key and **service_role** key into `.env.local`.
-3. Open the **SQL Editor** → paste each migration in order:
-   - [`001_init.sql`](supabase/migrations/001_init.sql)
-   - [`002_reservation_ends_at.sql`](supabase/migrations/002_reservation_ends_at.sql)
-   - [`003_orders.sql`](supabase/migrations/003_orders.sql)
-   - [`004_admin.sql`](supabase/migrations/004_admin.sql)
-   Hit **Run** after each.
+`.env.local` (never commit this file):
 
-The migrations create the following tables (with sensible RLS):
+```bash
+# ── Supabase ────────────────────────────────────────────────
+NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...              # public, browser-safe
+SUPABASE_SERVICE_ROLE_KEY=eyJ...                  # SERVER-ONLY (never expose)
+
+# ── Public site ─────────────────────────────────────────────
+NEXT_PUBLIC_SITE_URL=http://localhost:3000        # for OG / sitemap / Safepay redirects
+
+# ── Admin session ───────────────────────────────────────────
+ADMIN_SESSION_SECRET=<random-32-byte-base64>      # required, sign cookies
+
+# ── Safepay (card payments, Pakistan) ───────────────────────
+SAFEPAY_ENVIRONMENT=sandbox                       # sandbox | production
+SAFEPAY_API_KEY=sec_xxxxxxxxxxxxxxxxxxxxxxxxxxxx  # "client key" in dashboard
+SAFEPAY_V1_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxx      # "merchant secret"
+SAFEPAY_WEBHOOK_SECRET=xxxxxxxxxxxxxxxxxxxxxxx    # signing secret for webhook events
+```
+
+`SAFEPAY_V1_SECRET` and `SAFEPAY_API_SECRET` are accepted interchangeably. Same for `SAFEPAY_ENVIRONMENT` and `SAFEPAY_ENV`.
+
+Without Safepay credentials the site still functions — the card option in checkout returns a friendly *"Card payments are not configured yet, please choose cash on pickup."*
+
+---
+
+## Database (Supabase)
+
+### Create a project
+
+1. Go to <https://supabase.com> → New project.
+2. **Settings → API** → copy the **Project URL**, **anon public** key, and **service_role** key into `.env.local`.
+
+### Apply migrations (in order)
+
+Open the Supabase **SQL Editor** and paste each file's contents, in this order, clicking **Run** between each:
+
+| # | File | Purpose |
+|---|---|---|
+| 001 | [`001_init.sql`](supabase/migrations/001_init.sql) | Initial schema — menu, categories, reviews, reservations, contact, gallery; seed data |
+| 002 | [`002_reservation_ends_at.sql`](supabase/migrations/002_reservation_ends_at.sql) | Add `ends_at` to reservations |
+| 003 | [`003_orders.sql`](supabase/migrations/003_orders.sql) | Orders table + RLS |
+| 004 | [`004_admin.sql`](supabase/migrations/004_admin.sql) | `admin_users`, `store_settings` (singleton), `deals`, `coupons`, `is_admin()` helper, RLS for everything |
+| 005 | [`005_website_reviews.sql`](supabase/migrations/005_website_reviews.sql) | Allow `source = 'website'` in reviews + public insert policy |
+| 006 | [`006_store_status_until.sql`](supabase/migrations/006_store_status_until.sql) | (Legacy, optional) adds `closed_until` — the app no longer requires it |
+| 007 | [`007_busyness.sql`](supabase/migrations/007_busyness.sql) | `store_settings.busyness_level` + `auto_progress_minutes`; `orders.auto_advance_at` + index |
+
+### Tables created
 
 | Table | Purpose | Public can |
-| --- | --- | --- |
+|---|---|---|
 | `menu_categories` | Drink/food categories | read |
-| `menu_items`      | Individual menu items (with bestseller / signature / `is_disabled` flags) | read |
-| `reviews`         | Google / foodpanda / IG reviews | read |
-| `reservations`    | Table booking requests | insert |
-| `contact_messages` | Inbox for the contact form | insert |
-| `newsletter_subscribers` | Email signups (unique) | insert |
-| `gallery_images`  | Photo gallery | read |
-| `orders`          | Customer orders + Safepay tracker | insert |
-| `admin_users`     | Maps `auth.users` → admin role (owner/admin/staff) | — |
-| `store_settings`  | Singleton: open/closed, hours, contact, banner, payment toggles | read |
-| `deals`           | Scheduled promotions (whole-menu, category, or single-item) | read active |
-| `coupons`         | Discount codes (percentage/fixed, min spend, expiry, uses) | read active |
+| `menu_items` | Menu items (bestseller, signature, `is_disabled`, price, image, tags) | read |
+| `reviews` | Google / Foodpanda / IG / website reviews | read (+ insert for website) |
+| `reservations` | Table bookings | insert |
+| `contact_messages` | Contact-form inbox | insert |
+| `gallery_images` | Photo gallery | read |
+| `orders` | Customer orders + Safepay tracker + `auto_advance_at` | insert (via service-role API only) |
+| `admin_users` | Maps `auth.users` → admin role (owner/admin/staff) | — (admin only) |
+| `store_settings` | Singleton: open/closed, hours, contact, banner, payment toggles, busyness | read |
+| `deals` | Scheduled promotions | read active rows |
+| `coupons` | Discount codes | read active rows |
 
-Read access uses the **anon key** + RLS. The insert endpoints use the **service role key** server-side (never exposed to the browser).
+**RLS pattern:**
+- Reads use the **anon key** + RLS-allowed public policies.
+- Public writes (contact, reservation, website review) use a service-role helper that strips fields and validates server-side.
+- All admin writes use a server action that calls `requireAdmin()` first (validates the admin via Supabase Auth + `admin_users` row).
 
 ---
 
-## 💳 Safepay setup (card payments)
+## Bootstrap admin user
 
-1. Sign up at <https://getsafepay.com> → **Sandbox** environment.
-2. Settings → API keys → copy the **Client key** and **Merchant secret** into `.env.local` (`SAFEPAY_API_KEY`, `SAFEPAY_API_SECRET`).
-3. Settings → Webhooks → add a webhook pointing at:
-   - **Local**: use [ngrok](https://ngrok.com) or [cloudflared](https://github.com/cloudflare/cloudflared) to expose `http://localhost:3000/api/safepay/webhook`
-   - **Production**: `https://<your-domain>/api/safepay/webhook`
+After migration `004` is applied:
+
+### 1. Create the Auth user
+
+Supabase Dashboard → **Authentication → Users → Add user → Create new user**.
+Tick **Auto Confirm User** so it's usable immediately. Recommended:
+
+- Email: `webdev.muhammad@gmail.com`
+- Password: `Meseta@1`
+
+### 2. Add a matching row in `admin_users`
+
+The id in `admin_users` MUST match the Auth user's id. Easiest — run this in the SQL Editor:
+
+```sql
+insert into public.admin_users (id, email, full_name, role)
+select id, email, 'Muhammad', 'owner'
+from auth.users
+where email = 'webdev.muhammad@gmail.com'
+on conflict (id) do nothing;
+```
+
+### 3. Sign in
+
+Visit `/admin/login` → you should land on `/admin`. If you get bounced back to the login with *"This account is not registered as an admin"*, the `admin_users` row is missing — re-run step 2.
+
+---
+
+## Safepay (card payments)
+
+1. Sign up at <https://getsafepay.com> → start in **Sandbox**.
+2. **Settings → API keys** → copy **Client key** into `SAFEPAY_API_KEY` and **Merchant secret** into `SAFEPAY_V1_SECRET`.
+3. **Settings → Webhooks** → add a webhook pointing at:
+   - **Local**: expose `http://localhost:3000/api/safepay/webhook` via [ngrok](https://ngrok.com) or `cloudflared tunnel --url http://localhost:3000`.
+   - **Production**: `https://your-domain/api/safepay/webhook`.
    Copy the signing secret into `SAFEPAY_WEBHOOK_SECRET`.
-4. Test the flow: go to `/menu`, add an item, open the cart, click **Checkout**, fill the form, pick **Debit / Credit card** → you'll be redirected to Safepay's sandbox checkout. Use their [test cards](https://docs.getsafepay.com/sandbox/test-cards) (`4242 4242 4242 4242`, any future expiry, any CVC).
-5. After a successful test payment you'll land on `/checkout/success`, and the order in Supabase will have `payment_status = captured` (set by the webhook).
-
-> 🛟 The whole site keeps working even without Safepay credentials — **Cash on pickup** stays available and orders still save to `orders`.
-
-The migration also seeds the menu and a handful of real Google reviews so you have something to demo immediately.
+4. Test: `/menu` → add an item → cart drawer → **Checkout** → fill the form → **Debit / Credit card** → Safepay sandbox checkout (test card `4242 4242 4242 4242`, any future expiry, any CVC) → returns to `/checkout/success`. The webhook flips `payment_status = captured` and `status = accepted` on the order.
 
 ---
 
-## 🛠️ Admin dashboard
+## Architecture & key concepts
 
-A full-featured operator dashboard lives at **`/admin`**: dashboard KPIs, orders, menu CRUD, deals, coupons, reservations, messages, reviews, newsletter, settings, and a one-tap store-close toggle.
+### Route groups split the chrome
 
-### Create the bootstrap admin
+```
+app/
+├── layout.tsx           ← html / body / fonts only (minimal)
+├── loading.tsx          ← anti-flash loader (root)
+├── (site)/              ← public site
+│   ├── layout.tsx       ← Navbar + Footer + Cart + StoreStatusProvider
+│   ├── loading.tsx
+│   └── ... pages
+└── admin/               ← admin dashboard
+    ├── layout.tsx       ← AdminSidebar + AdminTopBar (auth-gated)
+    ├── loading.tsx
+    └── ... pages
+```
 
-1. Run migration `004_admin.sql` (above).
-2. Supabase Dashboard → **Authentication → Users → Add user → Create new user**:
-   - Email: **`webdev.muhammad@gmail.com`**
-   - Password: **`Meseta@1`**
-   - Tick **Auto Confirm Email** so it's usable immediately.
-3. Back in SQL Editor, copy the new user's UUID (Users → click the row → **User ID**) and run:
-   ```sql
-   insert into public.admin_users (id, email, full_name, role)
-   values (
-     '<paste-uuid-here>',
-     'webdev.muhammad@gmail.com',
-     'Muhammad',
-     'owner'
-   );
-   ```
-4. Visit <http://localhost:3000/admin/login> and sign in with the credentials above.
+The two groups have **completely separate chrome** — `/admin` physically cannot inherit the public navbar/footer.
 
-### What you can do from the dashboard
+### Store status: 3-layer combined state
 
-| Section | What it does |
-| --- | --- |
-| **Dashboard** | Today's revenue, AOV, orders in queue, top items (14d), 14-day order trend, recent orders, attention-needed inbox |
-| **Orders** | Filter by status/search, click any order to walk it through `placed → accepted → preparing → ready → completed` (or cancel) |
-| **Menu** | Create / edit / delete items, bulk **Enable all** / **Disable all**, per-item disable, prices, images, tags, sort order, category |
-| **Deals** | Schedule promotional offers (percentage / fixed PKR, whole menu / category / single item, start + end window) |
-| **Coupons** | Discount codes with min spend, expiry, max-uses cap, redemption counter |
-| **Reservations** | Confirm / mark seated / cancel / no-show, one tap |
-| **Messages** | Contact-form inbox with read/handled toggle |
-| **Reviews** | Toggle "Featured" to surface a review in the public carousel; delete |
-| **Newsletter** | Subscriber list with one-click CSV export |
-| **Settings** | Hours per day, contact channels, social links, payment-method toggles, announcement banner, closed-store message |
-| **Top bar pill** | Click "Store open" → confirm → entire public site shows a red banner with your message and **`/api/checkout` refuses to accept orders** |
+The "open/closed" badge on the hero and the order-blocking gates in checkout combine three sources of truth:
 
-### Live impact on the public site
+1. **Admin manual switch** (`store_settings.is_open`) — top-bar pill in admin or the Store status page.
+2. **Published opening hours** (`store_settings.hours`) — evaluated against Asia/Karachi time, with **overnight handling** (a Monday window of 9 AM – 1 AM is still "open" at 00:30 Tuesday).
+3. **Both formats supported** — `parseHour()` accepts both "9:00 AM" (seed) and "09:00" (admin form), `formatHour()` displays as "9:00 AM" everywhere.
 
-- **Disable a menu item** → it disappears from `/menu` and `/menu/[slug]` (404). Already in someone's cart? The checkout API drops it during server-side re-pricing.
-- **Close the store** → red banner across every page + checkout returns `503` with the custom message.
-- **Disable card payments** (Settings) → only Cash on pickup remains; submitting card returns a friendly error.
-- **Feature a review** → instantly visible in the home-page testimonials carousel.
+**Effective open** = `adminOpen AND withinHours`.
+
+Lives in [`src/lib/hours.ts`](src/lib/hours.ts) + [`src/lib/store-status/useLiveStoreStatus.ts`](src/lib/store-status/useLiveStoreStatus.ts). The provider [`StoreStatusProvider`](src/lib/store-status/StoreStatusProvider.tsx) carries the raw admin flag, the closed message, AND the current hours through to client components, so a single source of truth feeds every gate.
+
+### Busyness — auto-advance order pipeline
+
+Admin sets a busyness level (Normal × 1 / Busy × 2 / Super busy × 3) and three base minute values:
+
+- `placed → accepted` (default 2 min)
+- `accepted → preparing` (default 5 min)
+- `preparing → ready` (default 5 min)
+
+`ready → completed` and `→ cancelled` are **always manual**.
+
+**Effective time at each transition** = base × multiplier.
+
+**How auto-advance works** (no cron job needed):
+- On order create (`/api/checkout`), `auto_advance_at` is set to `now + first-stage minutes`.
+- Every time the admin opens `/admin/orders` or an order detail, `tickAutoAdvance()` runs first — it walks any order whose `auto_advance_at <= now` forward to the next status and resets the timer for the *next* stage.
+- Updates are conditioned on `status = old_status` so concurrent admin clicks never get silently overwritten.
+
+Logic lives in [`src/lib/admin/orders.ts`](src/lib/admin/orders.ts) and [`src/lib/admin/busyness-types.ts`](src/lib/admin/busyness-types.ts). UI in [`src/components/admin/BusynessForm.tsx`](src/components/admin/BusynessForm.tsx).
+
+### Cart + checkout flow
+
+```
+AddToOrderButton → useCart().add → localStorage persistence
+       │
+       ▼
+   CartFab pulse + CartDrawer slide-in
+       │
+       ▼
+   /checkout → form → POST /api/checkout
+       │
+       ├── server re-prices cart from menu_items
+       ├── refuses if store closed (admin OR after-hours)
+       ├── refuses if cart is empty / no valid items
+       ├── card → Safepay session → redirect to hosted checkout
+       │            ↓
+       │       /api/safepay/webhook (HMAC-verified)
+       │            ↓
+       │       payment_status=captured, status=accepted, auto_advance_at set
+       │
+       └── cash → straight to /checkout/success
+                  ↓
+        Fulfilment-aware confirmation page (printable)
+```
+
+### Stale service-worker purge
+
+A foreign service worker registered by another project on `localhost:3000` (or a previous deploy on the same domain) can intercept Meseta's requests and serve stale assets. [`<PurgeServiceWorker>`](src/components/PurgeServiceWorker.tsx) — mounted in the root layout — unregisters any worker on the origin and clears its caches on every load. Triggers one self-reload if a worker was actively controlling the page.
+
+### Honest UX (no false promises)
+
+The success page used to say *"We will send a confirmation to your WhatsApp"* — but there's no SMS/WhatsApp send anywhere. That copy was a lie. The current page:
+- Tells the customer what *actually* happens, fulfilment-aware (pickup vs delivery).
+- Surfaces the order number with a **Save this** emphasis.
+- Adds a **Print receipt** button (print-specific CSS strips shadows).
+- Adds a **Message Meseta** WhatsApp link with the order number pre-filled (customer-initiated, not a promise).
 
 ---
 
-## 📂 Project structure
+## Project structure
 
 ```
 meseta-coffee/
-├── src/
-│   ├── app/
-│   │   ├── layout.tsx              # root + fonts + nav/footer
-│   │   ├── page.tsx                # home
-│   │   ├── globals.css             # tailwind + theme tokens
-│   │   ├── menu/page.tsx
-│   │   ├── about/page.tsx
-│   │   ├── gallery/page.tsx
-│   │   ├── reviews/page.tsx
-│   │   ├── contact/page.tsx
-│   │   ├── reservations/page.tsx
-│   │   ├── not-found.tsx
-│   │   ├── sitemap.ts
-│   │   ├── robots.ts
-│   │   └── api/
-│   │       ├── contact/route.ts
-│   │       ├── reservations/route.ts
-│   │       └── newsletter/route.ts
-│   ├── components/                 # Navbar, Hero, Story, FeaturedItems, ...
-│   └── lib/
-│       ├── utils.ts
-│       ├── data/                   # static menu/reviews/site copy
-│       └── supabase/
-│           ├── client.ts           # browser client
-│           └── server.ts           # server + service-role clients
-├── supabase/
-│   └── migrations/001_init.sql
-├── tailwind.config.ts
+├── README.md
+├── package.json
 ├── next.config.mjs
+├── tailwind.config.ts
 ├── tsconfig.json
-└── .env.example
+├── postcss.config.mjs
+├── netlify.toml
+├── public/                          # static assets
+├── supabase/
+│   └── migrations/                  # 001 → 007 SQL migrations
+└── src/
+    ├── middleware.ts                # Supabase auth-cookie refresh + x-pathname
+    ├── app/
+    │   ├── layout.tsx               # html/body, CleanPreviewUrl, ClickEffect, PurgeServiceWorker
+    │   ├── loading.tsx              # root anti-flash route loader
+    │   ├── (site)/                  # public site route group
+    │   │   ├── layout.tsx           # Navbar, Footer, Cart, StoreStatusProvider
+    │   │   ├── loading.tsx
+    │   │   ├── page.tsx             # /
+    │   │   ├── menu/page.tsx        # /menu
+    │   │   ├── menu/[slug]/page.tsx # /menu/[slug]
+    │   │   ├── about/page.tsx
+    │   │   ├── gallery/page.tsx
+    │   │   ├── reviews/page.tsx
+    │   │   ├── contact/page.tsx
+    │   │   ├── reservations/page.tsx
+    │   │   ├── checkout/page.tsx
+    │   │   ├── checkout/success/page.tsx
+    │   │   └── checkout/cancel/page.tsx
+    │   ├── admin/
+    │   │   ├── layout.tsx           # AdminUIProvider + Sidebar + TopBar (auth-gated)
+    │   │   ├── loading.tsx
+    │   │   ├── page.tsx             # dashboard
+    │   │   ├── login/page.tsx
+    │   │   ├── logout/route.ts
+    │   │   ├── revenue/page.tsx
+    │   │   ├── orders/page.tsx
+    │   │   ├── orders/[number]/page.tsx
+    │   │   ├── reservations/page.tsx
+    │   │   ├── menu/page.tsx
+    │   │   ├── menu/new/page.tsx
+    │   │   ├── menu/[id]/page.tsx
+    │   │   ├── deals/...
+    │   │   ├── coupons/...
+    │   │   ├── messages/page.tsx
+    │   │   ├── reviews/page.tsx
+    │   │   ├── store-status/page.tsx
+    │   │   ├── busyness/page.tsx
+    │   │   ├── announcement/page.tsx
+    │   │   └── settings/page.tsx
+    │   └── api/
+    │       ├── contact/route.ts
+    │       ├── reservations/route.ts
+    │       ├── reviews/route.ts
+    │       ├── checkout/route.ts
+    │       └── safepay/webhook/route.ts
+    ├── components/
+    │   ├── Navbar.tsx, Footer.tsx, Hero.tsx, ...
+    │   ├── PurgeServiceWorker.tsx, CleanPreviewUrl.tsx, ClickEffect.tsx
+    │   ├── CoffeeLoader.tsx, RouteLoading.tsx
+    │   ├── anim/                    # CoffeeCup, LatteArt, beans, AnimatedRating, LiveBrewing, StoreStatusBadge
+    │   ├── cart/                    # CartFab, CartDrawer, AddToOrderButton
+    │   ├── checkout/                # PaymentMethodPicker
+    │   └── admin/                   # AdminSidebar, AdminTopBar, AdminUIProvider, AdminToast,
+    │                                # StoreStatusForm, BusynessForm, AnnouncementForm,
+    │                                # MenuItemForm, DealForm, CouponForm, StatCard, PageHeading,
+    │                                # LoginButton
+    └── lib/
+        ├── utils.ts
+        ├── data/                    # site, menu, reviews, gallery (static seed + helpers)
+        ├── hours.ts                 # PKT clock + open/close + format/parse (12h + 24h)
+        ├── supabase/
+        │   ├── client.ts            # browser client
+        │   └── server.ts            # server (anon) + service-role clients
+        ├── store-status/
+        │   ├── StoreStatusProvider.tsx
+        │   └── useLiveStoreStatus.ts
+        ├── cart/CartProvider.tsx
+        ├── safepay/client.ts        # Safepay session init + webhook signature verify
+        └── admin/
+            ├── auth.ts              # getCurrentAdmin + requireAdmin
+            ├── store.ts             # store_settings reads + updates
+            ├── orders.ts            # admin order list/detail + state transitions + tickAutoAdvance
+            ├── order-types.ts       # OrderStatus, STATUS_FLOW
+            ├── busyness.ts          # updateBusyness server action
+            ├── busyness-types.ts    # BusynessLevel + multipliers + nextAutoAdvanceAt
+            ├── deals.ts, coupons.ts
+            ├── inbox.ts             # reservations, messages, reviews
+            └── menu.ts              # menu CRUD
 ```
 
 ---
 
-## 🎨 Customising the brand
+## Common admin workflows
 
-- **Copy & contact info** : [`src/lib/data/site.ts`](src/lib/data/site.ts)
-- **Menu items** : [`src/lib/data/menu.ts`](src/lib/data/menu.ts)
-- **Reviews** : [`src/lib/data/reviews.ts`](src/lib/data/reviews.ts) (or wire to the `reviews` Supabase table)
-- **Gallery** : [`src/lib/data/gallery.ts`](src/lib/data/gallery.ts) (or wire to the `gallery_images` Supabase table)
-- **Colours / fonts** : [`tailwind.config.ts`](tailwind.config.ts) and [`src/app/layout.tsx`](src/app/layout.tsx)
+### Take an order off the menu temporarily
 
-> The current data layer reads from local TS files for instant rendering and demo-ability. The Supabase tables are ready for an admin dashboard. Swap the `import` to `createSupabaseServerClient().from(...)` whenever you want live editing.
+`/admin/menu` → toggle the item's switch off. Disappears from `/menu` and `/menu/[slug]` (returns 404). If it was in someone's cart, the checkout API drops it during server-side re-pricing.
+
+### Run a flash sale this weekend
+
+`/admin/deals` → New → percentage 20%, applies to `all`, set `starts_at` and `ends_at`, save. Live immediately.
+
+### Issue a coupon code for an event
+
+`/admin/coupons` → New → code `WELCOME10`, fixed PKR off, set `min_subtotal`, `max_uses`, `expires_at`. Coupon redemption is tracked per-use in the DB.
+
+### Close the store on short notice
+
+Top bar → click the green "Open" pill → land on `/admin/store-status` → toggle Close + add a reason ("ingredients restock") → Save. Public site instantly shows a red banner and checkout returns `503` with the message.
+
+### Switch into busy mode for a rush
+
+`/admin/busyness` → tap **Busy** (×2) → Save. New orders auto-advance through statuses at double the base time. Existing orders' next tick is recalculated.
+
+### Run a site-wide promotion banner
+
+`/admin/announcement` → type *"Free brownie with every cold brew this week!"* → Save. Gold banner at the top of every public page. Clear the field to hide it.
+
+### Walk an order through the kitchen
+
+`/admin/orders` → click an order → the right rail shows next-state buttons matching `STATUS_FLOW`. Customer name, phone, email and 1-tap Call / WhatsApp buttons are right there in the Customer card.
 
 ---
 
-## 🛳️ Deploy
+## Customising
 
-The cleanest path is **Vercel**:
+| Edit | File |
+|---|---|
+| Brand name, tagline, contact info, social links, default hours | [`src/lib/data/site.ts`](src/lib/data/site.ts) |
+| Static menu seed | [`src/lib/data/menu.ts`](src/lib/data/menu.ts) |
+| Static reviews seed | [`src/lib/data/reviews.ts`](src/lib/data/reviews.ts) |
+| Static gallery seed | [`src/lib/data/gallery.ts`](src/lib/data/gallery.ts) |
+| Theme colours (coffee / cream / gold / matcha) | [`tailwind.config.ts`](tailwind.config.ts) |
+| Fonts (Inter + Playfair Display) | [`src/app/layout.tsx`](src/app/layout.tsx) |
+| Hero illustration / animations | [`src/components/anim/`](src/components/anim) |
+| Default auto-progress base minutes | [`src/lib/admin/busyness-types.ts`](src/lib/admin/busyness-types.ts) — but admin can override at runtime |
 
-1. Push this repo to GitHub.
-2. Import it on <https://vercel.com/new>.
-3. Add the four env vars from the section above.
+Anything seeded statically is **read from DB when present, falls back to seed when empty** — so live editing in the admin always wins.
+
+---
+
+## Deployment
+
+### Netlify (current setup)
+
+1. Push to GitHub.
+2. Netlify → Import from GitHub → select the repo.
+3. **Site settings → Environment variables** — add every variable from [Environment variables](#environment-variables).
 4. Deploy.
 
+`netlify.toml` configures the build command + the Next.js runtime adapter.
+
+### Post-deploy checklist
+
+- [ ] All 7 migrations applied (via Supabase SQL Editor).
+- [ ] Bootstrap admin user created in Auth AND `admin_users`.
+- [ ] Safepay webhook URL updated to production: `https://your-domain/api/safepay/webhook`.
+- [ ] `NEXT_PUBLIC_SITE_URL` updated in Netlify env vars.
+- [ ] `SAFEPAY_ENVIRONMENT=production` (when ready for real cards).
+
 ---
 
-## 📝 License
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| **`TypeError: Cannot read properties of undefined (reading 'call')` in `webpack.js`** | Stale Next.js dev cache after lots of file churn | Stop dev server → `Remove-Item -Recurse -Force .next` → `npm run dev` |
+| **Login bounces back to `/admin/login`** | Auth user not in `admin_users` (or row id ≠ Auth user id) | Re-run the bootstrap SQL with `select id from auth.users where email = '...'` |
+| **Login POST returns `200 OK (from service worker)` and never navigates** | Stale service worker from another project on the same origin | [`<PurgeServiceWorker>`](src/components/PurgeServiceWorker.tsx) handles it on next load. Immediate: DevTools → Application → Clear site data |
+| **Admin saves but the public site doesn't reflect** | Page cache | `(site)/layout.tsx` is `force-dynamic` + all admin actions call `revalidatePath("/", "layout")`. If still stale, refresh hard once (Ctrl+Shift+R) |
+| **`Could not find the 'closed_until' column in schema cache`** | Migration drift | The code uses `select("*")` defensively and doesn't write `closed_until` anymore. Safe to ignore — or apply migration `006` if you want the legacy column |
+| **Store says "closed" but admin flag is on** | Outside published hours (`store_settings.hours`) OR DB hours not edited yet | Settings → Hours; remember admin form uses 24-hour ("09:00") format |
+| **Orders aren't auto-advancing** | Migration 007 not applied yet, OR no admin has loaded `/admin/orders` since the timer elapsed | Apply migration 007. The tick runs lazily on admin reads |
+| **Cart drawer's "Checkout" button is disabled** | Store closed (manual OR after-hours) | See "Store says closed" row |
+| **Safepay sandbox redirect returns to wrong domain** | `NEXT_PUBLIC_SITE_URL` mismatch | Set it to the URL the browser is actually visiting |
+
+---
+
+## License
 
 © Meseta Coffee. All rights reserved. This codebase was built as a bespoke website for the Meseta Coffee brand.

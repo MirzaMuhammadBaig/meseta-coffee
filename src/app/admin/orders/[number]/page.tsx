@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Mail, MessageCircle, Phone } from "lucide-react";
 import PageHeading from "@/components/admin/PageHeading";
 import { getOrderByNumber, updateOrderStatus } from "@/lib/admin/orders";
 import { STATUS_FLOW, type OrderStatus } from "@/lib/admin/order-types";
@@ -35,6 +35,12 @@ export default async function AdminOrderDetailPage({
   if (!order) notFound();
 
   const next = STATUS_FLOW[order.status];
+
+  // For tel:/wa.me links — strip everything except digits.
+  const phoneDigits = order.customer_phone.replace(/\D/g, "");
+  const whatsappUrl = `https://wa.me/${phoneDigits}?text=${encodeURIComponent(
+    `Hi ${order.customer_name.split(" ")[0]}! Following up on your Meseta order ${order.number}.`,
+  )}`;
 
   async function setStatus(target: OrderStatus) {
     "use server";
@@ -157,6 +163,41 @@ export default async function AdminOrderDetailPage({
 
           <section className="rounded-2xl bg-white p-6 shadow-[0_8px_30px_-18px_rgba(66,41,26,0.18)] ring-1 ring-coffee-100">
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-coffee-400">
+              Customer
+            </p>
+            <p className="mt-2 font-semibold text-coffee-800">
+              {order.customer_name}
+            </p>
+            <p className="mt-0.5 break-all text-sm text-coffee-600">
+              {order.customer_phone}
+            </p>
+            {order.customer_email && (
+              <p className="mt-0.5 inline-flex items-center gap-1.5 break-all text-xs text-coffee-500">
+                <Mail className="h-3 w-3 shrink-0" />
+                {order.customer_email}
+              </p>
+            )}
+
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <a
+                href={`tel:${phoneDigits}`}
+                className="inline-flex items-center justify-center gap-1.5 rounded-full border border-coffee-200 px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-coffee-700 transition hover:border-coffee-700 hover:bg-coffee-700 hover:text-cream-50"
+              >
+                <Phone className="h-3.5 w-3.5" /> Call
+              </a>
+              <a
+                href={whatsappUrl}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="inline-flex items-center justify-center gap-1.5 rounded-full border border-matcha-500/40 bg-matcha-500/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-matcha-700 transition hover:bg-matcha-500 hover:text-cream-50"
+              >
+                <MessageCircle className="h-3.5 w-3.5" /> WhatsApp
+              </a>
+            </div>
+          </section>
+
+          <section className="rounded-2xl bg-white p-6 shadow-[0_8px_30px_-18px_rgba(66,41,26,0.18)] ring-1 ring-coffee-100">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-coffee-400">
               Payment
             </p>
             <p className="mt-2 text-sm">
@@ -183,15 +224,12 @@ export default async function AdminOrderDetailPage({
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-coffee-400">
               Fulfilment
             </p>
-            <p className="mt-2 font-semibold text-coffee-800 capitalize">
+            <p className="mt-2 font-semibold capitalize text-coffee-800">
               {order.fulfilment}
             </p>
             {order.address && (
               <p className="mt-1 text-sm text-coffee-600">{order.address}</p>
             )}
-            <p className="mt-3 text-xs text-coffee-400">
-              {order.customer_email ?? "No email on file"}
-            </p>
           </section>
         </aside>
       </div>

@@ -4,6 +4,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/admin/auth";
+import {
+  DEFAULT_AUTO_PROGRESS_MINUTES,
+  type AutoProgressMinutes,
+  type BusynessLevel,
+} from "@/lib/admin/busyness-types";
 
 export type StoreSettings = {
   is_open: boolean;
@@ -18,6 +23,8 @@ export type StoreSettings = {
   social_facebook: string | null;
   accept_card_payments: boolean;
   accept_cash_payments: boolean;
+  busyness_level: BusynessLevel;
+  auto_progress_minutes: AutoProgressMinutes;
 };
 
 export async function getStoreSettings(): Promise<StoreSettings> {
@@ -30,22 +37,35 @@ export async function getStoreSettings(): Promise<StoreSettings> {
     .eq("id", 1)
     .maybeSingle();
 
-  return (
-    (data as StoreSettings) ?? {
-      is_open: true,
-      closed_message: null,
-      show_announcement: false,
-      announcement_text: null,
-      hours: [],
-      contact_phone: null,
-      contact_whatsapp: null,
-      contact_email: null,
-      social_instagram: null,
-      social_facebook: null,
-      accept_card_payments: true,
-      accept_cash_payments: true,
-    }
-  );
+  // Merge whatever came back with safe defaults — so a brand-new install
+  // (or a row that hasn't been migrated yet) still has sensible values.
+  const fallback: StoreSettings = {
+    is_open: true,
+    closed_message: null,
+    show_announcement: false,
+    announcement_text: null,
+    hours: [],
+    contact_phone: null,
+    contact_whatsapp: null,
+    contact_email: null,
+    social_instagram: null,
+    social_facebook: null,
+    accept_card_payments: true,
+    accept_cash_payments: true,
+    busyness_level: "normal",
+    auto_progress_minutes: DEFAULT_AUTO_PROGRESS_MINUTES,
+  };
+  if (!data) return fallback;
+  return {
+    ...fallback,
+    ...(data as Partial<StoreSettings>),
+    // Coerce the jsonb-stored object back to our typed shape with safe defaults.
+    auto_progress_minutes: {
+      ...DEFAULT_AUTO_PROGRESS_MINUTES,
+      ...((data as { auto_progress_minutes?: Partial<AutoProgressMinutes> })
+        .auto_progress_minutes ?? {}),
+    },
+  };
 }
 
 export async function setStoreOpen(isOpen: boolean, closedMessage?: string) {

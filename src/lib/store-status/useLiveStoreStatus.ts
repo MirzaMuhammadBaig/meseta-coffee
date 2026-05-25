@@ -21,7 +21,7 @@ export type LiveStatus = {
 };
 
 export function useLiveStoreStatus(): LiveStatus {
-  const { isOpen: adminOpen, closedMessage } = useStoreStatus();
+  const { isOpen: adminOpen, closedMessage, hours } = useStoreStatus();
   const [tick, setTick] = useState(0);
 
   // Heartbeat — bumps `tick` so the memo below recomputes the clock.
@@ -31,12 +31,12 @@ export function useLiveStoreStatus(): LiveStatus {
   }, []);
 
   return useMemo<LiveStatus>(() => {
-    const within = isWithinHours();
+    const within = isWithinHours(hours);
     if (!adminOpen) {
       return {
         open: false,
         reason: "manually_closed",
-        next: getNextOpening(),
+        next: getNextOpening(hours),
         closedMessage,
       };
     }
@@ -44,7 +44,7 @@ export function useLiveStoreStatus(): LiveStatus {
       return {
         open: false,
         reason: "after_hours",
-        next: getNextOpening(),
+        next: getNextOpening(hours),
         closedMessage,
       };
     }
@@ -52,7 +52,7 @@ export function useLiveStoreStatus(): LiveStatus {
     // `tick` is an intentional dep — it is the heartbeat that re-runs the
     // clock-dependent checks above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [adminOpen, closedMessage, tick]);
+  }, [adminOpen, closedMessage, hours, tick]);
 }
 
 /** Human phrase for when the shop next opens — "today at 9:00 AM" etc. */

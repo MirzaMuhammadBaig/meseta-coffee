@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServiceClient } from "@/lib/supabase/server";
 import { verifySafepayWebhook } from "@/lib/safepay/client";
+import {
+  DEFAULT_AUTO_PROGRESS_MINUTES,
+  nextAutoAdvanceAt,
+  type AutoProgressMinutes,
+  type BusynessLevel,
+} from "@/lib/admin/busyness-types";
 
 export const runtime = "nodejs";
 
@@ -60,20 +66,53 @@ export async function POST(req: Request) {
 
   const supabase = createSupabaseServiceClient();
   const update: Record<string, unknown> = { payment_status: newStatus };
+
   if (newStatus === "captured" || newStatus === "authorized") {
     update.paid_at = new Date().toISOString();
     update.status = "accepted";
+    // Reset the auto-advance timer to the next stage (preparing) so a
+    // paid order keeps moving on its own at the current busyness pace.
+    const { data: settings } = await supabase
+      .from("store_settings")
+      .select("busyness_level, auto_progress_minutes")
+      .eq("id", 1)
+      .maybeSingle();
+    update.auto_advance_at = nextAutoAdvanceAt(
+      "accepted",
+      (settings?.busyness_level as BusynessLevel) ?? "normal",
+      {
+        ...DEFAULT_AUTO_PROGRESS_MINUTES,
+        ...((settings?.auto_progress_minutes as Partial<AutoProgressMinutes>) ??
+          {}),
+      },
+    );
   } else if (newStatus === "failed" || newStatus === "cancelled") {
     update.status = "cancelled";
+    update.auto_advance_at = null;
   }
 
   // Try to find the order by tracker first (most reliable), fall back to order number.
-  const query = supabase.from("orders").update(update);
-  const { error } = tracker
-    ? await query.eq("safepay_tracker", tracker)
-    : orderNumber
-      ? await query.eq("number", orderNumber)
-      : { error: new Error("Missing tracker and order_id") };
+  async function runUpdate(payload: Record<string, unknown>) {
+    const q = supabase.from("orders").update(payload);
+    return tracker
+      ? q.eq("safepay_tracker", tracker)
+      : orderNumber
+        ? q.eq("number", orderNumber)
+        : Promise.resolve({
+            error: new Error("Missing tracker and order_id"),
+          });
+  }
+
+  let { error } = await runUpdate(update);
+
+  // Migration 007 not applied yet? Retry without the auto_advance_at field.
+  if (error && /auto_advance_at/i.test(error.message ?? "")) {
+    console.warn(
+      "[safepay webhook] auto_advance_at column missing — retrying without it.",
+    );
+    const { auto_advance_at: _drop, ...rest } = update;
+    ({ error } = await runUpdate(rest));
+  }
 
   if (error) {
     console.error("[safepay webhook] update failed", error);

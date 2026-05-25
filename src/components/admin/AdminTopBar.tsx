@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { LogOut, Menu, Power, Settings2 } from "lucide-react";
@@ -22,11 +23,17 @@ export default function AdminTopBar({
   const [showReopen, setShowReopen] = useState(false);
   const [pending, startTransition] = useTransition();
   const { openSidebar } = useAdminUI();
+  const router = useRouter();
 
   function reopen() {
     startTransition(async () => {
       await onToggle(true);
       setShowReopen(false);
+      // Without this, the topbar pill keeps showing "Closed" until the
+      // next navigation even though the store IS open in the DB —
+      // `revalidatePath` on the server invalidates the cache but the
+      // current page won't re-fetch on its own.
+      router.refresh();
     });
   }
 

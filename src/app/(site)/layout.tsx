@@ -7,6 +7,7 @@ import { CartProvider } from "@/lib/cart/CartProvider";
 import { StoreStatusProvider } from "@/lib/store-status/StoreStatusProvider";
 import { getStoreSettings } from "@/lib/admin/store";
 import { getNextOpening, isWithinHours } from "@/lib/hours";
+import { site } from "@/lib/data/site";
 
 // Always render with fresh store-settings — so when the admin flips
 // open/closed or updates the announcement, the public site reflects it
@@ -20,7 +21,16 @@ export default async function SiteLayout({
 }) {
   const settings = await getStoreSettings().catch(() => null);
   const adminOpen = settings?.is_open ?? true;
-  const withinHours = isWithinHours();
+
+  // Live hours from the admin's edits (DB), with the static seed as a
+  // safe fallback if the DB row has no hours array yet. Pass these
+  // through every open/close check so admin changes actually take effect.
+  const hours =
+    settings?.hours && settings.hours.length > 0
+      ? settings.hours
+      : site.hours;
+
+  const withinHours = isWithinHours(hours);
 
   // Closed for EITHER reason: the admin's manual switch, or being
   // outside the published opening hours.
@@ -34,7 +44,7 @@ export default async function SiteLayout({
   // time — no redundant "we are closed right now" line.
   let closedBannerMessage = settings?.closed_message ?? null;
   if (afterHours) {
-    const next = getNextOpening();
+    const next = getNextOpening(hours);
     closedBannerMessage = next
       ? `We reopen ${next.dayLabel} at ${next.time}.`
       : "We will reopen soon.";
@@ -52,6 +62,7 @@ export default async function SiteLayout({
       value={{
         isOpen: adminOpen,
         closedMessage: settings?.closed_message ?? null,
+        hours,
       }}
     >
       <CartProvider>

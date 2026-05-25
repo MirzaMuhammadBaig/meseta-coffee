@@ -3,6 +3,7 @@ import {
   ArrowUpRight,
   CalendarCheck2,
   CreditCard,
+  Gauge,
   Inbox,
   Receipt,
   ShoppingBag,
@@ -13,6 +14,11 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import PageHeading from "@/components/admin/PageHeading";
 import StatCard from "@/components/admin/StatCard";
 import { formatPkr } from "@/lib/utils";
+import { getStoreSettings } from "@/lib/admin/store";
+import {
+  BUSYNESS_LABELS,
+  BUSYNESS_MULTIPLIERS,
+} from "@/lib/admin/busyness-types";
 
 export const metadata = { title: "Dashboard" };
 
@@ -65,6 +71,7 @@ export default async function AdminDashboardPage() {
     reservationsRes,
     messagesRes,
     menuItemsRes,
+    settings,
   ] = await Promise.all([
     supabase
       .from("orders")
@@ -90,6 +97,7 @@ export default async function AdminDashboardPage() {
     supabase
       .from("menu_items")
       .select("id, is_disabled"),
+    getStoreSettings(),
   ]);
 
   const todayOrders = todayOrdersRes.data ?? [];
@@ -174,7 +182,36 @@ export default async function AdminDashboardPage() {
         />
       </div>
 
-      <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
+      {/* Busyness pill — current auto-progression pace at a glance. */}
+      <Link
+        href="/admin/busyness"
+        className="group mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-coffee-100 bg-white p-4 shadow-[0_8px_30px_-18px_rgba(66,41,26,0.18)] transition hover:border-coffee-300 sm:p-5"
+      >
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gold-500/15 text-gold-600">
+            <Gauge className="h-5 w-5" strokeWidth={1.8} />
+          </span>
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-coffee-400">
+              Busyness
+            </p>
+            <p className="mt-0.5 font-display text-lg text-coffee-800">
+              {BUSYNESS_LABELS[settings.busyness_level]}
+              <span className="ml-2 rounded-full bg-cream-100 px-2 py-0.5 text-[10px] font-bold text-coffee-600">
+                ×{BUSYNESS_MULTIPLIERS[settings.busyness_level]}
+              </span>
+            </p>
+          </div>
+        </div>
+        <p className="text-xs text-coffee-500 group-hover:text-coffee-800">
+          Base{" "}
+          {settings.auto_progress_minutes.placed_to_accepted}/
+          {settings.auto_progress_minutes.accepted_to_preparing}/
+          {settings.auto_progress_minutes.preparing_to_ready} min · change →
+        </p>
+      </Link>
+
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Recent orders */}
         <section className="rounded-2xl bg-white p-5 shadow-[0_8px_30px_-18px_rgba(66,41,26,0.18)] ring-1 ring-coffee-100 lg:col-span-2">
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
