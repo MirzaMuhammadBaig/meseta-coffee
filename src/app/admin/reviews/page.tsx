@@ -32,7 +32,7 @@ export default async function AdminReviewsPage() {
         description="Feature the best ones — they appear in the public reviews carousel."
       />
 
-      <div className="grid gap-8 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
         <ReviewColumn
           title="External reviews"
           subtitle="Synced from Google, foodpanda, Instagram, etc. Delete any you don't want shown."

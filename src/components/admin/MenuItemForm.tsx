@@ -16,13 +16,13 @@ export default function MenuItemForm({
   return (
     <form
       action={onSave}
-      className="grid gap-6 lg:grid-cols-[2fr_1fr] lg:gap-8"
+      className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr_1fr] lg:gap-8"
     >
       {/* Main */}
       <div className="space-y-6">
         <section className="rounded-2xl bg-white p-6 shadow-[0_8px_30px_-18px_rgba(66,41,26,0.18)] ring-1 ring-coffee-100">
           <h2 className="font-display text-xl text-coffee-800">Basics</h2>
-          <div className="mt-5 grid gap-5 sm:grid-cols-2">
+          <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <label className="text-xs font-semibold uppercase tracking-[0.2em] text-coffee-500">
                 Name

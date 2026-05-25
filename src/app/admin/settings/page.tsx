@@ -47,7 +47,7 @@ export default async function AdminSettingsPage({
         </div>
       )}
 
-      <form action={updateStoreSettings} className="grid gap-6">
+      <form action={updateStoreSettings} className="grid grid-cols-1 gap-6">
         <section className="rounded-2xl bg-white p-6 shadow-[0_8px_30px_-18px_rgba(66,41,26,0.18)] ring-1 ring-coffee-100">
           <h2 className="font-display text-xl text-coffee-800">
             Closed-store message
@@ -67,7 +67,7 @@ export default async function AdminSettingsPage({
 
         <section className="rounded-2xl bg-white p-6 shadow-[0_8px_30px_-18px_rgba(66,41,26,0.18)] ring-1 ring-coffee-100">
           <h2 className="font-display text-xl text-coffee-800">Hours</h2>
-          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {DAYS.map((day) => {
               const h = hoursByDay.get(day);
               return (
@@ -101,7 +101,7 @@ export default async function AdminSettingsPage({
 
         <section className="rounded-2xl bg-white p-6 shadow-[0_8px_30px_-18px_rgba(66,41,26,0.18)] ring-1 ring-coffee-100">
           <h2 className="font-display text-xl text-coffee-800">Contact</h2>
-          <div className="mt-5 grid gap-5 sm:grid-cols-2">
+          <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2">
             <Field
               name="contact_phone"
               label="Phone"
@@ -123,7 +123,7 @@ export default async function AdminSettingsPage({
 
         <section className="rounded-2xl bg-white p-6 shadow-[0_8px_30px_-18px_rgba(66,41,26,0.18)] ring-1 ring-coffee-100">
           <h2 className="font-display text-xl text-coffee-800">Social</h2>
-          <div className="mt-5 grid gap-5 sm:grid-cols-2">
+          <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2">
             <Field
               name="social_instagram"
               label="Instagram URL"

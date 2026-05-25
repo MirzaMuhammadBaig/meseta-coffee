@@ -56,7 +56,7 @@ export default async function AdminOrderDetailPage({
         description={`${order.customer_name} · ${order.customer_phone}`}
       />
 
-      <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr_1fr]">
         {/* Items */}
         <section className="rounded-2xl bg-white p-6 shadow-[0_8px_30px_-18px_rgba(66,41,26,0.18)] ring-1 ring-coffee-100">
           <h2 className="font-display text-xl text-coffee-800">Items</h2>

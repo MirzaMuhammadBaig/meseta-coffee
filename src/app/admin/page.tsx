@@ -144,7 +144,7 @@ export default async function AdminDashboardPage() {
         description="A live snapshot of orders, reservations and inbox."
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Revenue today"
           value={formatPkr(revenueToday)}
@@ -174,7 +174,7 @@ export default async function AdminDashboardPage() {
         />
       </div>
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-3">
+      <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Recent orders */}
         <section className="rounded-2xl bg-white p-5 shadow-[0_8px_30px_-18px_rgba(66,41,26,0.18)] ring-1 ring-coffee-100 lg:col-span-2">
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
@@ -200,47 +200,85 @@ export default async function AdminDashboardPage() {
               they'll appear here.
             </p>
           ) : (
-            <div className="mt-5 -mx-2 overflow-x-auto px-2">
-              <table className="w-full min-w-[520px] text-sm">
-                <thead className="text-left text-[10px] uppercase tracking-[0.2em] text-coffee-400">
-                  <tr className="border-b border-coffee-100">
-                    <th className="py-2 font-semibold">Order</th>
-                    <th className="py-2 font-semibold">Customer</th>
-                    <th className="py-2 font-semibold">Status</th>
-                    <th className="py-2 text-right font-semibold">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {last14.slice(0, 7).map((o) => (
-                    <tr key={o.id} className="border-b border-coffee-100/60 last:border-0">
-                      <td className="py-3">
-                        <Link
-                          href={`/admin/orders/${o.number}`}
-                          className="font-mono text-xs font-semibold text-coffee-800 hover:text-gold-600"
-                        >
-                          {o.number}
-                        </Link>
-                      </td>
-                      <td className="py-3 text-coffee-600">{o.customer_name}</td>
-                      <td className="py-3">
-                        <span
-                          className={
-                            "inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] " +
-                            (STATUS_TONE[o.status] ?? "bg-coffee-100 text-coffee-700")
-                          }
-                        >
-                          {o.status}
-                        </span>
-                      </td>
-                      <td className="py-3 text-right font-semibold text-coffee-800">
+            <>
+              {/* Mobile: each order as a compact stacked card — every
+                  field stays visible without a horizontal scroll. */}
+              <ul className="mt-5 space-y-3 sm:hidden">
+                {last14.slice(0, 7).map((o) => (
+                  <li
+                    key={o.id}
+                    className="rounded-xl border border-coffee-100 p-3"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <Link
+                        href={`/admin/orders/${o.number}`}
+                        className="font-mono text-xs font-semibold text-coffee-800 hover:text-gold-600"
+                      >
+                        {o.number}
+                      </Link>
+                      <span className="shrink-0 text-sm font-semibold tabular-nums text-coffee-800">
                         {formatPkr(o.total_pkr)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </span>
+                    </div>
+                    <p className="mt-1.5 truncate text-sm text-coffee-600">
+                      {o.customer_name}
+                    </p>
+                    <span
+                      className={
+                        "mt-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] " +
+                        (STATUS_TONE[o.status] ?? "bg-coffee-100 text-coffee-700")
+                      }
+                    >
+                      {o.status}
+                    </span>
+                  </li>
+                ))}
+              </ul>
 
-              {/* 14-day spark bars */}
+              {/* sm+ : original four-column table inside a horizontal
+                  scroll wrapper as a fallback for narrow tablets. */}
+              <div className="mt-5 -mx-2 hidden overflow-x-auto px-2 sm:block">
+                <table className="w-full min-w-[520px] text-sm">
+                  <thead className="text-left text-[10px] uppercase tracking-[0.2em] text-coffee-400">
+                    <tr className="border-b border-coffee-100">
+                      <th className="py-2 font-semibold">Order</th>
+                      <th className="py-2 font-semibold">Customer</th>
+                      <th className="py-2 font-semibold">Status</th>
+                      <th className="py-2 text-right font-semibold">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {last14.slice(0, 7).map((o) => (
+                      <tr key={o.id} className="border-b border-coffee-100/60 last:border-0">
+                        <td className="py-3">
+                          <Link
+                            href={`/admin/orders/${o.number}`}
+                            className="font-mono text-xs font-semibold text-coffee-800 hover:text-gold-600"
+                          >
+                            {o.number}
+                          </Link>
+                        </td>
+                        <td className="py-3 text-coffee-600">{o.customer_name}</td>
+                        <td className="py-3">
+                          <span
+                            className={
+                              "inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] " +
+                              (STATUS_TONE[o.status] ?? "bg-coffee-100 text-coffee-700")
+                            }
+                          >
+                            {o.status}
+                          </span>
+                        </td>
+                        <td className="py-3 text-right font-semibold text-coffee-800">
+                          {formatPkr(o.total_pkr)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* 14-day spark bars — always visible, on both layouts. */}
               <div className="mt-6 flex items-end gap-1">
                 {trendValues.map((v, i) => (
                   <div
@@ -254,7 +292,7 @@ export default async function AdminDashboardPage() {
               <p className="mt-1.5 text-[10px] uppercase tracking-[0.2em] text-coffee-400">
                 Orders per day (14d)
               </p>
-            </div>
+            </>
           )}
         </section>
 

@@ -23,7 +23,7 @@ export default function AnnouncementForm({
   const trimmed = text.trim();
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr] lg:gap-8">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.4fr_1fr] lg:gap-8">
       {/* ─── Editor ────────────────────────────────────────── */}
       <form
         action={onSave}
