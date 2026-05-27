@@ -12,6 +12,11 @@ import {
   getRelatedItems,
   menu,
 } from "@/lib/data/menu";
+import {
+  bestDealForMenuItem,
+  dealBadgeText,
+  getActiveDeals,
+} from "@/lib/data/deals-public";
 import { formatPkr } from "@/lib/utils";
 
 type Params = { slug: string };
@@ -45,6 +50,10 @@ export default async function MenuItemPage({ params }: { params: Params }) {
   const category = getCategory(item.category);
   const related = getRelatedItems(item, 3);
   const image = item.image ?? FALLBACK_MENU_IMAGE;
+  // Auto-apply any currently-active deal so the price shown matches what
+  // the customer will actually be charged at checkout.
+  const deals = await getActiveDeals();
+  const deal = bestDealForMenuItem(item.slug, item.category, item.price, deals);
 
   return (
     <>
@@ -108,14 +117,34 @@ export default async function MenuItemPage({ params }: { params: Params }) {
                 {item.name}
               </h1>
 
-              <div className="mt-5 flex items-baseline gap-3">
-                <span className="font-display text-3xl text-gold-600 sm:text-4xl">
-                  {formatPkr(item.price)}
-                </span>
+              <div className="mt-5 flex flex-wrap items-baseline gap-3">
+                {deal ? (
+                  <>
+                    <span className="font-display text-3xl text-matcha-700 sm:text-4xl">
+                      {formatPkr(deal.discountedPrice)}
+                    </span>
+                    <span className="text-lg text-coffee-400 line-through">
+                      {formatPkr(item.price)}
+                    </span>
+                    <span className="rounded-full bg-gold-500 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-coffee-900 shadow-sm">
+                      {dealBadgeText(deal.deal)}
+                    </span>
+                  </>
+                ) : (
+                  <span className="font-display text-3xl text-gold-600 sm:text-4xl">
+                    {formatPkr(item.price)}
+                  </span>
+                )}
                 <span className="text-xs uppercase tracking-[0.2em] text-coffee-400">
                   Inclusive of tax
                 </span>
               </div>
+
+              {deal && (
+                <p className="mt-2 text-xs text-matcha-700">
+                  🏷 {deal.deal.title} — auto-applied at checkout, no code needed.
+                </p>
+              )}
 
               <p className="mt-6 text-base leading-relaxed text-coffee-600 sm:text-lg">
                 {item.description}

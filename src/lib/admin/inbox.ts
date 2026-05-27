@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/admin/auth";
+import { pktRangeToUtc } from "@/lib/admin/date-range";
 
 // ─── Reservations ──────────────────────────────────────────
 export type ReservationRow = {
@@ -26,6 +27,9 @@ export type ReservationRow = {
 export async function listReservations(filter?: {
   status?: ReservationRow["status"] | "all";
   q?: string;
+  /** PKT day strings YYYY-MM-DD (inclusive). Filter on `reserved_for`. */
+  from?: string | null;
+  to?: string | null;
 }): Promise<ReservationRow[]> {
   await requireAdmin();
   const supabase = createSupabaseServerClient();
@@ -33,7 +37,7 @@ export async function listReservations(filter?: {
     .from("reservations")
     .select("*")
     .order("reserved_for", { ascending: false })
-    .limit(200);
+    .limit(500);
 
   if (filter?.status && filter.status !== "all") {
     q = q.eq("status", filter.status);
@@ -44,6 +48,12 @@ export async function listReservations(filter?: {
       `name.ilike.${term},phone.ilike.${term},email.ilike.${term},notes.ilike.${term}`,
     );
   }
+
+  // Filter on `reserved_for` — admin cares about WHEN the reservation is,
+  // not when it was booked.
+  const { fromIso, toIso } = pktRangeToUtc(filter?.from, filter?.to);
+  if (fromIso) q = q.gte("reserved_for", fromIso);
+  if (toIso) q = q.lte("reserved_for", toIso);
 
   const { data, error } = await q;
   if (error) throw error;

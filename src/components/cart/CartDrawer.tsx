@@ -17,13 +17,19 @@ import {
   useLiveStoreStatus,
 } from "@/lib/store-status/useLiveStoreStatus";
 import { formatPkr, cn } from "@/lib/utils";
+import {
+  CartTotals,
+  CouponInput,
+  usePricingPreview,
+} from "@/components/cart/PricingPreview";
 
 export default function CartDrawer() {
-  const { lines, count, subtotal, isOpen, close, setQty, remove, clear } =
-    useCart();
+  const { lines, count, isOpen, close, setQty, remove, clear } = useCart();
   // Effective open state — admin switch combined with published hours.
   const storeStatus = useLiveStoreStatus();
   const storeOpen = storeStatus.open;
+  // Live priced cart from /api/cart/preview (deals + coupon applied server-side).
+  const { priced, loading: pricingLoading } = usePricingPreview();
 
   // Lock body scroll while the drawer is open
   useEffect(() => {
@@ -175,28 +181,22 @@ export default function CartDrawer() {
         </div>
 
         {!empty && (
-          <footer className="border-t border-coffee-100 bg-cream-100/40 p-5 sm:p-6">
-            <dl className="flex items-baseline justify-between">
-              <dt className="text-sm uppercase tracking-[0.18em] text-coffee-500">
-                Subtotal
-              </dt>
-              <dd className="font-display text-2xl text-coffee-800">
-                {formatPkr(subtotal)}
-              </dd>
-            </dl>
+          <footer className="space-y-3 border-t border-coffee-100 bg-cream-100/40 p-5 sm:p-6">
+            <CouponInput priced={priced} loading={pricingLoading} />
+            <CartTotals priced={priced} loading={pricingLoading} />
 
             {storeOpen ? (
               <>
                 <Link
                   href="/checkout"
                   onClick={close}
-                  className="group mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-coffee-700 px-5 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-cream-50 shadow-[0_12px_28px_-10px_rgba(46,27,16,0.6)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-coffee-800 hover:shadow-[0_18px_36px_-14px_rgba(46,27,16,0.65)] active:translate-y-0 active:scale-[0.97]"
+                  className="group inline-flex w-full items-center justify-center gap-2 rounded-full bg-coffee-700 px-5 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-cream-50 shadow-[0_12px_28px_-10px_rgba(46,27,16,0.6)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-coffee-800 hover:shadow-[0_18px_36px_-14px_rgba(46,27,16,0.65)] active:translate-y-0 active:scale-[0.97]"
                 >
                   <CreditCard className="h-4 w-4 transition-transform duration-300 group-hover:-rotate-6" />
-                  Checkout · {formatPkr(subtotal)}
+                  Checkout · {formatPkr(priced?.total_pkr ?? 0)}
                 </Link>
 
-                <p className="mt-3 inline-flex w-full items-center justify-center gap-1.5 text-[11px] text-coffee-400">
+                <p className="inline-flex w-full items-center justify-center gap-1.5 text-[11px] text-coffee-400">
                   <ShieldCheck className="h-3.5 w-3.5 text-matcha-500" />
                   Card payments secured by Safepay
                 </p>
@@ -207,12 +207,12 @@ export default function CartDrawer() {
                   type="button"
                   disabled
                   aria-disabled
-                  className="mt-5 inline-flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-full bg-coffee-200 px-5 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-coffee-500"
+                  className="inline-flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-full bg-coffee-200 px-5 py-3 text-sm font-semibold uppercase tracking-[0.18em] text-coffee-500"
                 >
                   <CreditCard className="h-4 w-4" />
                   Checkout unavailable
                 </button>
-                <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-center text-[11px] text-red-700">
+                <p className="rounded-xl bg-red-50 px-3 py-2 text-center text-[11px] text-red-700">
                   {closedReasonMessage(storeStatus)}
                 </p>
               </>
@@ -221,7 +221,7 @@ export default function CartDrawer() {
             <button
               type="button"
               onClick={clear}
-              className="mt-4 w-full rounded-full px-4 py-2 text-xs uppercase tracking-[0.18em] text-coffee-500 transition-colors duration-200 hover:text-red-600"
+              className="w-full rounded-full px-4 py-2 text-xs uppercase tracking-[0.18em] text-coffee-500 transition-colors duration-200 hover:text-red-600"
             >
               Clear order
             </button>

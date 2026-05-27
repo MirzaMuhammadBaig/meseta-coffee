@@ -3,6 +3,7 @@ import { ChefHat, Receipt, Leaf } from "lucide-react";
 import CtaBanner from "@/components/CtaBanner";
 import MenuExplorer from "@/components/menu/MenuExplorer";
 import { getPublicMenu } from "@/lib/data/menu";
+import { getActiveDeals } from "@/lib/data/deals-public";
 
 export const metadata: Metadata = {
   title: "Menu",
@@ -29,13 +30,16 @@ const menuNotes = [
 ];
 
 export default async function MenuPage() {
-  const { items, categories } = await getPublicMenu();
+  const [{ items, categories }, deals] = await Promise.all([
+    getPublicMenu(),
+    getActiveDeals(),
+  ]);
   return (
     <>
       {/* Products surface immediately. Search + category chips live inside MenuExplorer. */}
       <section className="pb-14 pt-6 sm:pb-20 sm:pt-8 lg:pb-28 lg:pt-10">
         <div className="container-base">
-          <MenuExplorer items={items} categories={categories} />
+          <MenuExplorer items={items} categories={categories} deals={deals} />
         </div>
       </section>
 

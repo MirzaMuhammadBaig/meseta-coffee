@@ -7,6 +7,11 @@ import AddToOrderButton from "@/components/cart/AddToOrderButton";
 import SafeImage from "@/components/SafeImage";
 import type { MenuItem } from "@/lib/data/menu";
 import { FALLBACK_MENU_IMAGE } from "@/lib/data/menu-images";
+import {
+  bestDealForMenuItem,
+  dealBadgeText,
+  type PublicDeal,
+} from "@/lib/data/deals-public";
 import { cn, formatPkr } from "@/lib/utils";
 
 type Category = {
@@ -18,6 +23,8 @@ type Category = {
 type Props = {
   items: MenuItem[];
   categories: Category[];
+  /** Currently-active deals — used to render strikethrough prices + badges. */
+  deals?: PublicDeal[];
 };
 
 /** Strip diacritics + lowercase so accent-insensitive search works (e.g. "cafe" matches "café"). */
@@ -31,7 +38,7 @@ function escapeRegex(s: string) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-export default function MenuExplorer({ items, categories }: Props) {
+export default function MenuExplorer({ items, categories, deals = [] }: Props) {
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -311,7 +318,17 @@ export default function MenuExplorer({ items, categories }: Props) {
 
                 <div className="mt-8 grid gap-5 sm:mt-10 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
                   {catItems.map((item) => (
-                    <MenuCard key={item.slug} item={item} highlight={query} />
+                    <MenuCard
+                      key={item.slug}
+                      item={item}
+                      highlight={query}
+                      deal={bestDealForMenuItem(
+                        item.slug,
+                        item.category,
+                        item.price,
+                        deals,
+                      )}
+                    />
                   ))}
                 </div>
               </div>
@@ -351,7 +368,15 @@ function Chip({
   );
 }
 
-function MenuCard({ item, highlight }: { item: MenuItem; highlight?: string }) {
+function MenuCard({
+  item,
+  highlight,
+  deal,
+}: {
+  item: MenuItem;
+  highlight?: string;
+  deal?: ReturnType<typeof bestDealForMenuItem>;
+}) {
   return (
     <article className="card-interactive group flex flex-col overflow-hidden">
       <Link
@@ -374,19 +399,39 @@ function MenuCard({ item, highlight }: { item: MenuItem; highlight?: string }) {
             }
           />
           <div className="absolute inset-0 bg-gradient-to-t from-coffee-900/40 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
-          {item.bestseller && (
-            <span className="absolute left-4 top-4 rounded-full bg-coffee-700 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-cream-50 shadow-md transition-transform duration-300 group-hover:-translate-y-0.5">
-              Bestseller
-            </span>
-          )}
+          <div className="absolute left-4 top-4 flex flex-col gap-1.5">
+            {item.bestseller && (
+              <span className="self-start rounded-full bg-coffee-700 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-cream-50 shadow-md transition-transform duration-300 group-hover:-translate-y-0.5">
+                Bestseller
+              </span>
+            )}
+            {deal && (
+              <span className="self-start rounded-full bg-gold-500 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-coffee-900 shadow-md transition-transform duration-300 group-hover:-translate-y-0.5">
+                {dealBadgeText(deal.deal)}
+              </span>
+            )}
+          </div>
         </div>
         <div className="flex flex-1 flex-col p-5 sm:p-6">
           <div className="flex items-baseline justify-between gap-3">
             <h3 className="font-display text-lg text-coffee-800 transition-colors duration-300 group-hover:text-coffee-900 sm:text-xl">
               <Highlight text={item.name} term={highlight} />
             </h3>
-            <span className="shrink-0 whitespace-nowrap text-sm font-semibold text-coffee-700 transition-colors duration-300 group-hover:text-gold-600 sm:text-base">
-              {formatPkr(item.price)}
+            <span className="shrink-0 whitespace-nowrap text-sm font-semibold sm:text-base">
+              {deal ? (
+                <>
+                  <span className="mr-1.5 text-xs text-coffee-400 line-through">
+                    {formatPkr(item.price)}
+                  </span>
+                  <span className="text-matcha-700">
+                    {formatPkr(deal.discountedPrice)}
+                  </span>
+                </>
+              ) : (
+                <span className="text-coffee-700 transition-colors duration-300 group-hover:text-gold-600">
+                  {formatPkr(item.price)}
+                </span>
+              )}
             </span>
           </div>
           <p className="mt-2 text-sm text-coffee-500">

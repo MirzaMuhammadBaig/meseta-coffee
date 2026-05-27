@@ -19,6 +19,11 @@ import {
 import PaymentMethodPicker, {
   type PaymentMethod,
 } from "@/components/checkout/PaymentMethodPicker";
+import {
+  CartTotals,
+  CouponInput,
+  usePricingPreview,
+} from "@/components/cart/PricingPreview";
 import { cn, formatPkr } from "@/lib/utils";
 
 const lettersOnly = /[^a-zA-Z\s'\-\.]/g;
@@ -30,10 +35,12 @@ function sanitize(e: React.ChangeEvent<HTMLInputElement>, pattern: RegExp) {
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { lines, count, subtotal, clear } = useCart();
+  const { lines, count, couponCode, clear } = useCart();
   // Effective open state — admin switch combined with published hours.
   const storeStatus = useLiveStoreStatus();
   const storeOpen = storeStatus.open;
+  // Live priced cart (deal + coupon math from /api/cart/preview).
+  const { priced, loading: pricingLoading } = usePricingPreview();
 
   const [method, setMethod] = useState<PaymentMethod>("card");
   const [fulfilment, setFulfilment] = useState<"pickup" | "delivery">("pickup");
@@ -49,14 +56,11 @@ export default function CheckoutPage() {
     }
   }, [count, submitting, router]);
 
-  const summary = useMemo(
-    () => ({
-      itemsCount: count,
-      subtotal,
-      total: subtotal, // No tax/delivery yet — display column matches subtotal
-    }),
-    [count, subtotal],
+  const itemsCount = useMemo(
+    () => lines.reduce((s, l) => s + l.qty, 0),
+    [lines],
   );
+  const displayTotal = priced?.total_pkr ?? 0;
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -77,6 +81,7 @@ export default function CheckoutPage() {
       address: fulfilment === "delivery" ? fd.get("address") : null,
       payment_method: method,
       items: lines.map((l) => ({ slug: l.slug, qty: l.qty })),
+      coupon_code: couponCode ?? null,
     };
 
     try {
@@ -297,8 +302,8 @@ export default function CheckoutPage() {
                 ) : (
                   <>
                     {method === "card"
-                      ? `Pay ${formatPkr(summary.total)}`
-                      : `Place order · ${formatPkr(summary.total)}`}
+                      ? `Pay ${formatPkr(displayTotal)}`
+                      : `Place order · ${formatPkr(displayTotal)}`}
                   </>
                 )}
               </button>
@@ -315,57 +320,72 @@ export default function CheckoutPage() {
                 <div>
                   <p className="eyebrow">Your order</p>
                   <p className="font-display text-lg text-coffee-800">
-                    {summary.itemsCount} item
-                    {summary.itemsCount === 1 ? "" : "s"}
+                    {itemsCount} item{itemsCount === 1 ? "" : "s"}
                   </p>
                 </div>
               </header>
 
-              <ul className="max-h-80 overflow-y-auto divide-y divide-coffee-100">
-                {lines.map((l) => (
-                  <li
-                    key={l.slug}
-                    className="flex items-start justify-between gap-3 px-5 py-3.5"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-coffee-800">
-                        {l.name}
-                      </p>
-                      <p className="mt-0.5 text-xs text-coffee-400">
-                        {l.qty} × {formatPkr(l.price)}
-                      </p>
-                    </div>
-                    <span className="whitespace-nowrap text-sm font-semibold text-coffee-700">
-                      {formatPkr(l.qty * l.price)}
-                    </span>
-                  </li>
-                ))}
+              <ul className="max-h-72 overflow-y-auto divide-y divide-coffee-100">
+                {lines.map((l) => {
+                  const priceLine = priced?.lines.find((p) => p.slug === l.slug);
+                  const dealApplies =
+                    priceLine != null &&
+                    priceLine.discounted_unit_price_pkr <
+                      priceLine.unit_price_pkr;
+                  return (
+                    <li
+                      key={l.slug}
+                      className="flex items-start justify-between gap-3 px-5 py-3.5"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-coffee-800">
+                          {l.name}
+                        </p>
+                        <p className="mt-0.5 text-xs text-coffee-400">
+                          {l.qty} ×{" "}
+                          {dealApplies ? (
+                            <>
+                              <span className="line-through">
+                                {formatPkr(l.price)}
+                              </span>{" "}
+                              <span className="font-semibold text-matcha-700">
+                                {formatPkr(priceLine!.discounted_unit_price_pkr)}
+                              </span>
+                            </>
+                          ) : (
+                            formatPkr(l.price)
+                          )}
+                        </p>
+                        {dealApplies && priceLine!.deal_title && (
+                          <p className="mt-0.5 inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-matcha-700">
+                            🏷 {priceLine!.deal_title}
+                          </p>
+                        )}
+                      </div>
+                      <span className="whitespace-nowrap text-sm font-semibold text-coffee-700">
+                        {formatPkr(
+                          l.qty *
+                            (priceLine?.discounted_unit_price_pkr ?? l.price),
+                        )}
+                      </span>
+                    </li>
+                  );
+                })}
               </ul>
 
-              <dl className="grid gap-2 border-t border-coffee-100 p-5 text-sm">
-                <div className="flex items-baseline justify-between">
-                  <dt className="text-coffee-500">Subtotal</dt>
-                  <dd className="tabular-nums text-coffee-800">
-                    {formatPkr(summary.subtotal)}
-                  </dd>
-                </div>
-                <div className="flex items-baseline justify-between">
-                  <dt className="text-coffee-500">Delivery</dt>
-                  <dd className="text-xs text-coffee-400">
-                    {fulfilment === "delivery"
-                      ? "Calculated on WhatsApp"
-                      : "Free pickup"}
-                  </dd>
-                </div>
-                <div className="mt-2 flex items-baseline justify-between border-t border-dashed border-coffee-100 pt-3">
-                  <dt className="text-xs uppercase tracking-[0.18em] text-coffee-500">
-                    Total
-                  </dt>
-                  <dd className="font-display text-2xl text-coffee-800">
-                    {formatPkr(summary.total)}
-                  </dd>
-                </div>
-              </dl>
+              <div className="space-y-3 border-t border-coffee-100 p-5">
+                <CouponInput priced={priced} loading={pricingLoading} />
+                <CartTotals
+                  priced={priced}
+                  loading={pricingLoading}
+                  highlightTotal
+                />
+                <p className="text-[11px] text-coffee-400">
+                  {fulfilment === "delivery"
+                    ? "Delivery within Bahria Town — fees confirmed by the rider."
+                    : "Pickup is free."}
+                </p>
+              </div>
             </div>
 
             <p className="mt-4 text-center text-[11px] text-coffee-400">

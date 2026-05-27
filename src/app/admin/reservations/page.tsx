@@ -1,7 +1,9 @@
 import Link from "next/link";
-import { Search } from "lucide-react";
+import { Download, Search } from "lucide-react";
 import PageHeading from "@/components/admin/PageHeading";
+import DateRangeFilter from "@/components/admin/DateRangeFilter";
 import { listReservations, updateReservationStatus } from "@/lib/admin/inbox";
+import { describeRange } from "@/lib/admin/date-range";
 import { formatDate } from "@/lib/utils";
 
 export const metadata = { title: "Reservations" };
@@ -33,7 +35,7 @@ const STATUS_TONE: Record<string, string> = {
 export default async function AdminReservationsPage({
   searchParams,
 }: {
-  searchParams: { status?: string; q?: string };
+  searchParams: { status?: string; q?: string; from?: string; to?: string };
 }) {
   const status =
     (searchParams.status as
@@ -44,12 +46,28 @@ export default async function AdminReservationsPage({
       | "cancelled"
       | "no_show") ?? "all";
   const q = searchParams.q ?? "";
-  const rows = await listReservations({ status, q });
+  const from = searchParams.from ?? null;
+  const to = searchParams.to ?? null;
+  const rows = await listReservations({ status, q, from, to });
 
-  async function setStatus(id: string, next: "confirmed" | "seated" | "cancelled" | "no_show") {
+  async function setStatus(
+    id: string,
+    next: "confirmed" | "seated" | "cancelled" | "no_show",
+  ) {
     "use server";
     await updateReservationStatus(id, next);
   }
+
+  const baseParams = new URLSearchParams();
+  if (q) baseParams.set("q", q);
+  if (from) baseParams.set("from", from);
+  if (to) baseParams.set("to", to);
+
+  const csvHref = `/api/admin/reservations/csv?${(() => {
+    const sp = new URLSearchParams(baseParams);
+    if (status !== "all") sp.set("status", status);
+    return sp.toString();
+  })()}`;
 
   return (
     <>
@@ -57,9 +75,22 @@ export default async function AdminReservationsPage({
         eyebrow="Operations"
         title="Reservations"
         description="Confirm, mark seated, cancel, or no-show in one tap."
+        actions={
+          <a
+            href={csvHref}
+            className="inline-flex items-center gap-1.5 rounded-full border border-coffee-100 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-coffee-600 transition hover:border-coffee-300 hover:text-coffee-800"
+          >
+            <Download className="h-3 w-3" /> Export CSV
+          </a>
+        }
       />
 
-      <form className="mb-5 flex flex-wrap items-center gap-2">
+      <DateRangeFilter className="mb-4" />
+
+      <form className="mb-3 flex flex-wrap items-center gap-2">
+        <input type="hidden" name="status" value={status} />
+        {from && <input type="hidden" name="from" value={from} />}
+        {to && <input type="hidden" name="to" value={to} />}
         <div className="relative min-w-[200px] flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-coffee-400" />
           <input
@@ -71,10 +102,12 @@ export default async function AdminReservationsPage({
         </div>
         {FILTERS.map((f) => {
           const active = status === f.value;
+          const sp = new URLSearchParams(baseParams);
+          sp.set("status", f.value);
           return (
             <Link
               key={f.value}
-              href={`/admin/reservations?status=${f.value}${q ? `&q=${encodeURIComponent(q)}` : ""}`}
+              href={`/admin/reservations?${sp.toString()}`}
               className={
                 "rounded-full px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] transition " +
                 (active
@@ -93,6 +126,23 @@ export default async function AdminReservationsPage({
           Search
         </button>
       </form>
+
+      <p className="mb-4 text-xs text-coffee-500">
+        <span className="font-semibold text-coffee-700">{rows.length}</span>{" "}
+        reservation{rows.length === 1 ? "" : "s"} · {describeRange(from, to)}
+        {status !== "all" && (
+          <>
+            {" "}· status{" "}
+            <span className="font-semibold text-coffee-700">{status}</span>
+          </>
+        )}
+        {q && (
+          <>
+            {" "}· matching{" "}
+            <span className="font-semibold text-coffee-700">&ldquo;{q}&rdquo;</span>
+          </>
+        )}
+      </p>
 
       <div className="overflow-hidden rounded-2xl bg-white shadow-[0_8px_30px_-18px_rgba(66,41,26,0.18)] ring-1 ring-coffee-100">
         <div className="overflow-x-auto">

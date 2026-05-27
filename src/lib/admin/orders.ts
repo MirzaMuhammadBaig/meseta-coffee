@@ -13,6 +13,7 @@ import {
   type AutoProgressMinutes,
   type BusynessLevel,
 } from "@/lib/admin/busyness-types";
+import { pktRangeToUtc } from "@/lib/admin/date-range";
 
 // Columns we always want to read for an admin order view.
 const ORDER_COLUMNS =
@@ -92,6 +93,9 @@ async function tickAutoAdvance(): Promise<void> {
 export async function listOrders(filter?: {
   status?: OrderStatus | "all";
   q?: string;
+  /** PKT day strings YYYY-MM-DD (inclusive). Filter on `created_at`. */
+  from?: string | null;
+  to?: string | null;
 }): Promise<AdminOrder[]> {
   await requireAdmin();
   await tickAutoAdvance();
@@ -101,7 +105,7 @@ export async function listOrders(filter?: {
     .from("orders")
     .select(ORDER_COLUMNS)
     .order("created_at", { ascending: false })
-    .limit(200);
+    .limit(500);
 
   if (filter?.status && filter.status !== "all") {
     q = q.eq("status", filter.status);
@@ -112,6 +116,10 @@ export async function listOrders(filter?: {
       `number.ilike.${term},customer_name.ilike.${term},customer_phone.ilike.${term}`,
     );
   }
+
+  const { fromIso, toIso } = pktRangeToUtc(filter?.from, filter?.to);
+  if (fromIso) q = q.gte("created_at", fromIso);
+  if (toIso) q = q.lte("created_at", toIso);
 
   const { data, error } = await q;
   if (error) throw error;

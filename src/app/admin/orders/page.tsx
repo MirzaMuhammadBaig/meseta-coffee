@@ -1,8 +1,10 @@
 import Link from "next/link";
-import { Search } from "lucide-react";
+import { Download, Search } from "lucide-react";
 import PageHeading from "@/components/admin/PageHeading";
+import DateRangeFilter from "@/components/admin/DateRangeFilter";
 import { listOrders } from "@/lib/admin/orders";
 import type { OrderStatus } from "@/lib/admin/order-types";
+import { describeRange } from "@/lib/admin/date-range";
 import { formatPkr, formatDate } from "@/lib/utils";
 
 export const metadata = { title: "Orders" };
@@ -38,11 +40,25 @@ const PAY_TONE: Record<string, string> = {
 export default async function AdminOrdersPage({
   searchParams,
 }: {
-  searchParams: { status?: string; q?: string };
+  searchParams: { status?: string; q?: string; from?: string; to?: string };
 }) {
   const status = (searchParams.status as OrderStatus | "all") ?? "all";
   const q = searchParams.q ?? "";
-  const orders = await listOrders({ status, q });
+  const from = searchParams.from ?? null;
+  const to = searchParams.to ?? null;
+  const orders = await listOrders({ status, q, from, to });
+
+  // Preserve filter state across the chip + search-bar links.
+  const baseParams = new URLSearchParams();
+  if (q) baseParams.set("q", q);
+  if (from) baseParams.set("from", from);
+  if (to) baseParams.set("to", to);
+
+  const csvHref = `/api/admin/orders/csv?${(() => {
+    const sp = new URLSearchParams(baseParams);
+    if (status !== "all") sp.set("status", status);
+    return sp.toString();
+  })()}`;
 
   return (
     <>
@@ -50,9 +66,22 @@ export default async function AdminOrdersPage({
         eyebrow="Operations"
         title="Orders"
         description="Walk every order through the kitchen flow. Click an order to see details."
+        actions={
+          <a
+            href={csvHref}
+            className="inline-flex items-center gap-1.5 rounded-full border border-coffee-100 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-coffee-600 transition hover:border-coffee-300 hover:text-coffee-800"
+          >
+            <Download className="h-3 w-3" /> Export CSV
+          </a>
+        }
       />
 
-      <form className="mb-5 flex flex-wrap items-center gap-2">
+      <DateRangeFilter className="mb-4" />
+
+      <form className="mb-3 flex flex-wrap items-center gap-2">
+        <input type="hidden" name="status" value={status} />
+        {from && <input type="hidden" name="from" value={from} />}
+        {to && <input type="hidden" name="to" value={to} />}
         <div className="relative flex-1 sm:min-w-[200px]">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-coffee-400" />
           <input
@@ -64,10 +93,12 @@ export default async function AdminOrdersPage({
         </div>
         {STATUSES.map((s) => {
           const active = status === s.value;
+          const sp = new URLSearchParams(baseParams);
+          sp.set("status", s.value);
           return (
             <Link
               key={s.value}
-              href={`/admin/orders?status=${s.value}${q ? `&q=${encodeURIComponent(q)}` : ""}`}
+              href={`/admin/orders?${sp.toString()}`}
               className={
                 "rounded-full px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] transition " +
                 (active
@@ -86,6 +117,23 @@ export default async function AdminOrdersPage({
           Search
         </button>
       </form>
+
+      <p className="mb-4 text-xs text-coffee-500">
+        <span className="font-semibold text-coffee-700">{orders.length}</span>{" "}
+        order{orders.length === 1 ? "" : "s"} · {describeRange(from, to)}
+        {status !== "all" && (
+          <>
+            {" "}· status{" "}
+            <span className="font-semibold text-coffee-700">{status}</span>
+          </>
+        )}
+        {q && (
+          <>
+            {" "}· matching{" "}
+            <span className="font-semibold text-coffee-700">&ldquo;{q}&rdquo;</span>
+          </>
+        )}
+      </p>
 
       <div className="overflow-hidden rounded-2xl bg-white shadow-[0_8px_30px_-18px_rgba(66,41,26,0.18)] ring-1 ring-coffee-100">
         <div className="overflow-x-auto">

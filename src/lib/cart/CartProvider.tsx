@@ -19,11 +19,14 @@ export type CartLine = {
 type CartState = {
   lines: CartLine[];
   count: number; // total quantity
-  subtotal: number; // sum of price * qty
+  subtotal: number; // sum of price * qty (raw, pre-discount — for display only)
   isOpen: boolean;
+  /** Coupon code the customer has entered. Validated server-side. */
+  couponCode: string | null;
   add: (item: Omit<CartLine, "qty">, qty?: number) => void;
   remove: (slug: string) => void;
   setQty: (slug: string, qty: number) => void;
+  setCouponCode: (code: string | null) => void;
   clear: () => void;
   open: () => void;
   close: () => void;
@@ -33,11 +36,13 @@ type CartState = {
 const CartContext = createContext<CartState | null>(null);
 
 const STORAGE_KEY = "meseta:cart:v1";
+const COUPON_STORAGE_KEY = "meseta:cart:coupon:v1";
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [lines, setLines] = useState<CartLine[]>([]);
   const [isOpen, setOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  const [couponCode, setCouponCodeState] = useState<string | null>(null);
 
   // Hydrate from localStorage once on mount
   useEffect(() => {
@@ -47,6 +52,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) setLines(parsed);
       }
+      const cc = localStorage.getItem(COUPON_STORAGE_KEY);
+      if (cc) setCouponCodeState(cc);
     } catch {
       // localStorage may be unavailable (Safari private mode) — fail silently
     }
@@ -62,6 +69,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       // see above
     }
   }, [lines, hydrated]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      if (couponCode) localStorage.setItem(COUPON_STORAGE_KEY, couponCode);
+      else localStorage.removeItem(COUPON_STORAGE_KEY);
+    } catch {
+      /* ignore */
+    }
+  }, [couponCode, hydrated]);
 
   const add = useCallback<CartState["add"]>((item, qty = 1) => {
     setLines((prev) => {
@@ -87,10 +104,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
-  const clear = useCallback(() => setLines([]), []);
+  const clear = useCallback(() => {
+    setLines([]);
+    setCouponCodeState(null);
+  }, []);
   const open = useCallback(() => setOpen(true), []);
   const close = useCallback(() => setOpen(false), []);
   const toggle = useCallback(() => setOpen((o) => !o), []);
+  const setCouponCode = useCallback<CartState["setCouponCode"]>((code) => {
+    // Normalise to uppercase, treat empty as cleared.
+    const v = code?.trim().toUpperCase() || null;
+    setCouponCodeState(v);
+  }, []);
 
   const { count, subtotal } = useMemo(() => {
     let count = 0;
@@ -108,15 +133,31 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       count,
       subtotal,
       isOpen,
+      couponCode,
       add,
       remove,
       setQty,
+      setCouponCode,
       clear,
       open,
       close,
       toggle,
     }),
-    [lines, count, subtotal, isOpen, add, remove, setQty, clear, open, close, toggle],
+    [
+      lines,
+      count,
+      subtotal,
+      isOpen,
+      couponCode,
+      add,
+      remove,
+      setQty,
+      setCouponCode,
+      clear,
+      open,
+      close,
+      toggle,
+    ],
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

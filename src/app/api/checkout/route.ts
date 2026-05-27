@@ -7,57 +7,13 @@ import {
   initSafepaySession,
   isSafepayConfigured,
 } from "@/lib/safepay/client";
-import { menu } from "@/lib/data/menu";
 import { getStoreSettings } from "@/lib/admin/store";
 import { getNextOpening, isWithinHours } from "@/lib/hours";
 import { site } from "@/lib/data/site";
 import { nextAutoAdvanceAt } from "@/lib/admin/busyness-types";
+import { priceCart, redeemCoupon } from "@/lib/pricing";
 
 export const runtime = "nodejs";
-
-/**
- * Look every cart slug up in the live catalog (Supabase, excluding disabled
- * items). Falls back to the static seed when Supabase is empty so dev still
- * works. Returns canonical name + price so the client cannot tamper.
- */
-async function priceCart(items: { slug: string; qty: number }[]) {
-  const valid: { slug: string; name: string; qty: number; price_pkr: number }[] = [];
-  try {
-    const supabase = createSupabaseServerClient();
-    const slugs = items.map((i) => i.slug);
-    const { data } = await supabase
-      .from("menu_items")
-      .select("slug, name, price_pkr")
-      .in("slug", slugs)
-      .eq("is_disabled", false);
-    if (data && data.length > 0) {
-      for (const raw of items) {
-        const row = data.find((r) => r.slug === raw.slug);
-        if (!row) continue;
-        valid.push({
-          slug: row.slug,
-          name: row.name,
-          qty: Math.min(Math.max(Math.floor(raw.qty), 1), 99),
-          price_pkr: row.price_pkr,
-        });
-      }
-      return valid;
-    }
-  } catch {
-    // fall through to static
-  }
-  for (const raw of items) {
-    const item = menu.find((m) => m.slug === raw.slug);
-    if (!item) continue;
-    valid.push({
-      slug: item.slug,
-      name: item.name,
-      qty: Math.min(Math.max(Math.floor(raw.qty), 1), 99),
-      price_pkr: item.price,
-    });
-  }
-  return valid;
-}
 
 type Payload = {
   name?: unknown;
@@ -68,6 +24,7 @@ type Payload = {
   address?: unknown;
   payment_method?: unknown;
   items?: unknown;
+  coupon_code?: unknown;
 };
 
 type IncomingItem = { slug?: unknown; qty?: unknown };
@@ -166,8 +123,9 @@ export async function POST(req: Request) {
   }
 
   // ─── Re-price the cart server-side ──────────────────────
-  // Never trust client-supplied prices: look every item up in the live
-  // catalog (excluding disabled items) and ignore unknown slugs.
+  // The pricing engine is the single source of truth. It re-loads the
+  // canonical menu (so client-supplied prices are ignored), applies any
+  // active deals automatically, and validates the coupon if one was sent.
   if (!Array.isArray(body.items) || body.items.length === 0) {
     return NextResponse.json({ error: "Cart is empty." }, { status: 400 });
   }
@@ -178,8 +136,13 @@ export async function POST(req: Request) {
     }))
     .filter((r) => r.slug && Number.isFinite(r.qty) && r.qty >= 1);
 
-  const lines = await priceCart(incoming);
-  if (lines.length === 0) {
+  const couponCodeRaw =
+    typeof body.coupon_code === "string" && body.coupon_code.trim()
+      ? body.coupon_code.trim().toUpperCase()
+      : null;
+
+  const priced = await priceCart({ items: incoming, couponCode: couponCodeRaw });
+  if (priced.lines.length === 0) {
     return NextResponse.json(
       {
         error:
@@ -188,7 +151,36 @@ export async function POST(req: Request) {
       { status: 400 },
     );
   }
-  const subtotal = lines.reduce((s, l) => s + l.qty * l.price_pkr, 0);
+
+  // If the client thinks a coupon applies but the engine rejected it
+  // (expired, exhausted, min not met) — bail with the first notice so the
+  // customer sees the real reason instead of a silently-dropped discount.
+  if (couponCodeRaw && !priced.applied_coupon) {
+    const reason = priced.notices.find((n) => n.includes(couponCodeRaw)) ?? priced.notices[0];
+    return NextResponse.json(
+      {
+        error: reason ?? `Coupon "${couponCodeRaw}" could not be applied.`,
+        code: "coupon_invalid",
+      },
+      { status: 400 },
+    );
+  }
+
+  // Shape the items column to match what the admin order detail expects.
+  // Keep deal_id + deal_title per line so admin analytics can answer
+  // "which deal generated this order line?" without joining anywhere.
+  const lines = priced.lines.map((l) => ({
+    slug: l.slug,
+    name: l.name,
+    qty: l.qty,
+    price_pkr: l.discounted_unit_price_pkr,
+    original_price_pkr: l.unit_price_pkr,
+    deal_id: l.deal_id,
+    deal_title: l.deal_title,
+  }));
+  const subtotal = priced.subtotal_pkr;
+  const totalDiscount =
+    priced.deal_discount_pkr + priced.coupon_discount_pkr;
 
   // ─── Persist the order ──────────────────────────────────
   const supabase = createSupabaseServiceClient();
@@ -216,7 +208,9 @@ export async function POST(req: Request) {
     address,
     items: lines,
     subtotal_pkr: subtotal,
-    total_pkr: subtotal,
+    discount_pkr: totalDiscount,
+    total_pkr: priced.total_pkr,
+    coupon_code: priced.applied_coupon?.code ?? null,
     payment_method: paymentMethod,
     notes,
   };
@@ -253,6 +247,16 @@ export async function POST(req: Request) {
     );
   }
 
+  // ─── Redeem the coupon (best-effort, atomic-ish) ────────
+  // If the order persisted with a coupon, increment uses_count now.
+  // Optimistic concurrency inside redeemCoupon prevents two simultaneous
+  // orders from double-counting the same redemption slot.
+  if (priced.applied_coupon) {
+    await redeemCoupon(priced.applied_coupon.code).catch((err) => {
+      console.warn("[checkout] coupon redemption failed (non-fatal):", err);
+    });
+  }
+
   // ─── Card via Safepay ───────────────────────────────────
   if (paymentMethod === "card") {
     if (!isSafepayConfigured()) {
@@ -274,7 +278,7 @@ export async function POST(req: Request) {
     try {
       const { tracker, checkoutUrl } = await initSafepaySession({
         orderId: order.number,
-        amountPkr: subtotal,
+        amountPkr: priced.total_pkr,
         customer: { name, phone, email: email ?? undefined },
         successUrl: `${siteUrl}/checkout/success?order=${order.number}&fulfilment=${fulfilment}&payment=card`,
         cancelUrl: `${siteUrl}/checkout/cancel?order=${order.number}`,
