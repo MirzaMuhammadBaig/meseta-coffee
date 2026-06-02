@@ -11,7 +11,7 @@ import {
   bestDealForMenuItem,
   dealBadgeText,
   type PublicDeal,
-} from "@/lib/data/deals-public";
+} from "@/lib/data/deals-helpers";
 import { cn, formatPkr } from "@/lib/utils";
 
 type Category = {

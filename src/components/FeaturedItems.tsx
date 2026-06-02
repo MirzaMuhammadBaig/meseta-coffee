@@ -2,11 +2,11 @@ import Link from "next/link";
 import SafeImage from "@/components/SafeImage";
 import Reveal from "@/components/anim/Reveal";
 import { bestsellers, FALLBACK_MENU_IMAGE } from "@/lib/data/menu";
+import { getActiveDeals } from "@/lib/data/deals-public";
 import {
   bestDealForMenuItem,
   dealBadgeText,
-  getActiveDeals,
-} from "@/lib/data/deals-public";
+} from "@/lib/data/deals-helpers";
 import { formatPkr } from "@/lib/utils";
 import { ArrowRight } from "lucide-react";
 

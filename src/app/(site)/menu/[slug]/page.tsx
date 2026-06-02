@@ -12,11 +12,11 @@ import {
   getRelatedItems,
   menu,
 } from "@/lib/data/menu";
+import { getActiveDeals } from "@/lib/data/deals-public";
 import {
   bestDealForMenuItem,
   dealBadgeText,
-  getActiveDeals,
-} from "@/lib/data/deals-public";
+} from "@/lib/data/deals-helpers";
 import { formatPkr } from "@/lib/utils";
 
 type Params = { slug: string };

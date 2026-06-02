@@ -4,11 +4,11 @@ import { ArrowRight, Tag, TicketPercent } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import SafeImage from "@/components/SafeImage";
 import CtaBanner from "@/components/CtaBanner";
+import { getActiveDeals } from "@/lib/data/deals-public";
 import {
   bestDealForMenuItem,
   dealBadgeText,
-  getActiveDeals,
-} from "@/lib/data/deals-public";
+} from "@/lib/data/deals-helpers";
 import { getPublicMenu } from "@/lib/data/menu";
 import { FALLBACK_MENU_IMAGE } from "@/lib/data/menu-images";
 import { formatPkr } from "@/lib/utils";
