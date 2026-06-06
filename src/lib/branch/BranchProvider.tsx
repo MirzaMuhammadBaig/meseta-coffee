@@ -23,8 +23,11 @@ import type { Branch } from "@/lib/data/branches-helpers";
  * or the first sorted branch as a fallback.
  */
 
-const STORAGE_KEY = "meseta.branch.id.v1";
-const CHOSEN_KEY = "meseta.branch.chosen.v1";
+// Bumped from v1 → v2 when the picker moved off the home page and onto
+// order-intent routes. Users who chose under v1 deserve to see the new
+// per-page picker once so they confirm the choice in the new context.
+const STORAGE_KEY = "meseta.branch.id.v2";
+const CHOSEN_KEY = "meseta.branch.chosen.v2";
 
 type Ctx = {
   branches: Branch[];

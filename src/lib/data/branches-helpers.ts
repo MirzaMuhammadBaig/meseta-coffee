@@ -2,7 +2,7 @@
  * Pure, client-safe Branch type + helpers.
  *
  * Kept separate from `branches.ts` so client components (BranchPicker,
- * BranchProvider, BranchChip) can import without dragging
+ * BranchProvider, BranchBanner) can import without dragging
  * `next/headers` into the browser bundle.
  */
 
