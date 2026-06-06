@@ -9,15 +9,16 @@ Use the heading above each block as the title when you talk through it.
 ## Table of contents
 
 1. [The big picture — public site + admin](#1-the-big-picture--public-site--admin)
-2. [Customer order journey — step by step](#2-customer-order-journey--step-by-step)
-3. [Reservation flow](#3-reservation-flow)
-4. [What the admin can do](#4-what-the-admin-can-do)
-5. [Deals + coupons lifecycle](#5-deals--coupons-lifecycle)
-6. [Pricing engine — server is the authority](#6-pricing-engine--server-is-the-authority)
-7. [How "Open / Closed" is decided](#7-how-open--closed-is-decided)
-8. [Busyness — automatic order progression](#8-busyness--automatic-order-progression)
-9. [Database tables and relationships](#9-database-tables-and-relationships)
-10. [Hosting + deployment pipeline](#10-hosting--deployment-pipeline)
+2. [Multi-branch routing — Phase 4 + DHA-1](#2-multi-branch-routing--phase-4--dha-1)
+3. [Customer order journey — step by step](#3-customer-order-journey--step-by-step)
+4. [Reservation flow](#4-reservation-flow)
+5. [What the admin can do](#5-what-the-admin-can-do)
+6. [Deals + coupons lifecycle](#6-deals--coupons-lifecycle)
+7. [Pricing engine — server is the authority](#7-pricing-engine--server-is-the-authority)
+8. [How "Open / Closed" is decided](#8-how-open--closed-is-decided)
+9. [Busyness — automatic order progression](#9-busyness--automatic-order-progression)
+10. [Database tables and relationships](#10-database-tables-and-relationships)
+11. [Hosting + deployment pipeline](#11-hosting--deployment-pipeline)
 
 ---
 
@@ -32,13 +33,14 @@ flowchart TB
     subgraph Public["🌐 PUBLIC WEBSITE"]
         direction TB
         Home["🏠 Home<br/>hero · marquee · story<br/>featured · reviews · CTA"]
-        Menu["📜 Menu<br/>search · filter by category"]
-        Item["☕ Item detail<br/>image · description<br/>price · Add to cart"]
+        BrPick{{"📍 Branch picker modal<br/>opens on /menu /checkout /reservations<br/>if no branch chosen yet"}}
+        Menu["📜 Menu<br/>BranchBanner · search · category"]
+        Item["☕ Item detail<br/>BranchBanner · image · price<br/>Add to cart"]
         DealsP["🏷️ Deals page<br/>active promotions"]
-        Checkout["🛒 Checkout<br/>name · phone · address<br/>coupon · cash or card"]
-        Success["✅ Order success<br/>receipt · WhatsApp"]
+        Checkout["🛒 Checkout<br/>'Ordering from X' chip<br/>name · phone · cash or card"]
+        Success["✅ Order success<br/>'Pickup at X' · receipt · WhatsApp"]
         Cancel["↩️ Order cancel"]
-        Reserve["📅 Reservations<br/>date · time · party size"]
+        Reserve["📅 Reservations<br/>'Reserving at X' chip"]
         About["👋 About / Story"]
         Gallery["📸 Gallery"]
         Reviews["⭐ Reviews · 25+ entries"]
@@ -47,12 +49,16 @@ flowchart TB
 
     Visitor --> Home
     Home --> Menu
+    Menu --> BrPick
+    BrPick --> Menu
     Menu --> Item
+    Item --> BrPick
     Item --> Checkout
     Menu --> Checkout
     Home --> DealsP
     DealsP --> Menu
     Home --> Reserve
+    Reserve --> BrPick
     Checkout --> Success
     Checkout --> Cancel
     Home --> About
@@ -110,7 +116,47 @@ flowchart TB
 
 ---
 
-## 2. Customer order journey — step by step
+## 2. Multi-branch routing — Phase 4 + DHA-1
+
+Meseta runs two outlets, Bahria Phase 4 (main, 4.5★ · 1,072 reviews) and DHA-1 (4.3★ · 222 reviews). Every order and reservation is tagged to a branch. The picker appears at the right moment — never on the home page — and the choice persists in the browser. Admin sees a single dashboard with a branch filter.
+
+```mermaid
+flowchart TB
+    V((🧑 Visitor))
+    V --> Land[/"Lands on / · /about · /gallery"/]
+    Land -->|no modal| Story["📖 Brand story uninterrupted"]
+
+    V --> Intent[/"Reaches /menu · /menu/[slug]<br/>· /checkout · /reservations"/]
+    Intent --> HasC{Branch chosen<br/>before?}
+    HasC -->|yes, localStorage| Page["🌐 Page renders<br/>BranchBanner: 'Ordering from X · Switch'"]
+    HasC -->|no| Modal["📍 BranchPicker modal<br/>opens automatically<br/>(only when 2+ branches)"]
+    Modal --> Cards["Phase 4 ★ 4.5 · 1,072<br/>DHA-1   ★ 4.3 · 222"]
+    Cards -->|pick| Save[("💾 localStorage<br/>meseta.branch.id.v1<br/>meseta.branch.chosen.v1")]
+    Save --> Page
+
+    Page --> Nav["🧭 Navbar chip<br/>'📍 Phase 4 ▾'<br/>tap to reopen picker"]
+
+    Page --> Co["🛒 Cart · /checkout"]
+    Co -->|POST /api/checkout<br/>{ items, branch_id }| Srv["⚙️ Server validates<br/>branch_id against<br/>active branches"]
+    Srv -->|invalid| Fall["↪ silently fall back<br/>to main branch"]
+    Srv -->|valid| Save2[("📦 orders.branch_id")]
+    Fall --> Save2
+
+    Page --> Re["📅 /reservations"]
+    Re -->|POST /api/reservations<br/>{ ..., branch_id }| Srv2["⚙️ Same server-side<br/>validation + fallback"]
+    Srv2 --> Save3[("📅 reservations.branch_id")]
+
+    Save2 -.-> Admin["🧑‍🍳 /admin filter chips<br/>All / Phase 4 / DHA-1"]
+    Save3 -.-> Admin
+    Admin -.-> CSV["📥 CSV exports<br/>respect active branch"]
+
+    classDef intent fill:#fef3c7,stroke:#a16207
+    class Intent intent
+```
+
+---
+
+## 3. Customer order journey — step by step
 
 Exactly what happens from the moment a visitor adds something to the cart to the moment the café is notified.
 
@@ -126,6 +172,11 @@ sequenceDiagram
     participant Cafe as 🧑‍🍳 Café
 
     C->>Web: Browse menu, click "Add to cart"
+    opt Has not chosen a branch yet
+        Web-->>C: BranchPicker modal opens<br/>(Phase 4 / DHA-1)
+        C->>Web: Pick a branch
+        Web->>Web: Save to localStorage
+    end
     Web->>Cart: Save line item (also to localStorage)
     Cart-->>C: Drawer shows running total
 
@@ -134,6 +185,7 @@ sequenceDiagram
     Preview-->>Cart: Per-line deal price · subtotal<br/>discount · total
 
     C->>Web: Open /checkout, fill details
+    Note over Web: "Ordering from Phase 4 [Switch]"<br/>trust chip visible above the form
     opt Has a code
         C->>Web: Type coupon code, click Apply
         Web->>Preview: Re-price with coupon
@@ -141,15 +193,16 @@ sequenceDiagram
     end
 
     C->>Web: Click "Place order"
-    Web->>API: POST /api/checkout
+    Web->>API: POST /api/checkout<br/>{ items, coupon_code, branch_id }
 
-    Note over API,DB: Server is the authority — never trusts<br/>the client's claimed total
+    Note over API,DB: Server is the authority — never trusts<br/>the client's claimed total OR branch
 
     API->>API: priceCart() — recompute from items
+    API->>DB: Validate branch_id against<br/>active branches; fall back to main<br/>if missing or invalid
     opt Coupon present
         API->>DB: Re-validate coupon
     end
-    API->>DB: INSERT orders row<br/>(subtotal, discount, coupon, total,<br/>per-line deal_id + original_price)
+    API->>DB: INSERT orders row<br/>(branch_id, subtotal, discount, coupon, total,<br/>per-line deal_id + original_price)
     opt Coupon present
         API->>DB: redeemCoupon() — optimistic UPDATE<br/>only if uses_count unchanged
     end
@@ -173,7 +226,7 @@ sequenceDiagram
 
 ---
 
-## 3. Reservation flow
+## 4. Reservation flow
 
 Booking a table is simpler than ordering: no payment, no cart, just a server-validated form.
 
@@ -201,7 +254,7 @@ sequenceDiagram
 
 ---
 
-## 4. What the admin can do
+## 5. What the admin can do
 
 Every screen the admin can reach, grouped by purpose. Each leaf is one page in the dashboard.
 
@@ -209,12 +262,13 @@ Every screen the admin can reach, grouped by purpose. Each leaf is one page in t
 flowchart LR
     Login["🔑 /admin/login"] --> Dash["📊 /admin<br/>Dashboard"]
 
+    Dash --> BrFilt["📍 Branch chip row<br/>All · Phase 4 · DHA-1<br/>re-scopes every KPI"]
     Dash --> Ops["🅰 Operations"]
-    Ops --> Stats["KPIs by date range<br/>orders · revenue · pending · AOV"]
+    Ops --> Stats["KPIs by date range + branch<br/>orders · revenue · pending · AOV"]
     Ops --> RevRep["💰 /admin/revenue<br/>by-day chart · CSV"]
-    Ops --> OrdL["📦 /admin/orders<br/>filter: range · status · search<br/>summary chips · CSV export"]
-    OrdL --> OrdDet["Order detail<br/>items · customer · timeline<br/>📞 Call · 💬 WhatsApp<br/>status controls"]
-    Ops --> ResvL["📅 /admin/reservations<br/>filter: range · status<br/>approve · decline · seated · CSV"]
+    Ops --> OrdL["📦 /admin/orders<br/>filter: range · status · search · branch<br/>summary chips · CSV export"]
+    OrdL --> OrdDet["Order detail<br/>branch shown in eyebrow<br/>📞 Call · 💬 WhatsApp<br/>status controls"]
+    Ops --> ResvL["📅 /admin/reservations<br/>filter: range · status · branch<br/>approve · decline · seated · CSV"]
 
     Dash --> Cat["🅱 Catalog"]
     Cat --> MenuL["☕ /admin/menu<br/>items CRUD · category · image"]
@@ -236,7 +290,7 @@ flowchart LR
 
 ---
 
-## 5. Deals + coupons lifecycle
+## 6. Deals + coupons lifecycle
 
 How a marketing campaign goes from an idea in the admin head to a discount on a customer's order — and how every redemption flows back into the dashboard.
 
@@ -273,7 +327,7 @@ flowchart TB
 
 ---
 
-## 6. Pricing engine — server is the authority
+## 7. Pricing engine — server is the authority
 
 The same code (`src/lib/pricing.ts`) powers both the cart preview and the real checkout, so what the customer sees and what they pay are always equal — and the client can never inflate or skip a discount.
 
@@ -302,7 +356,7 @@ flowchart TB
 
 ---
 
-## 7. How "Open / Closed" is decided
+## 8. How "Open / Closed" is decided
 
 Three signals combine to decide whether the store accepts orders right now.
 
@@ -327,7 +381,7 @@ flowchart TB
 
 ---
 
-## 8. Busyness — automatic order progression
+## 9. Busyness — automatic order progression
 
 The admin sets a busyness level (Normal / Busy / Super busy) which multiplies the auto-advance timers. New orders crawl forward through the pipeline by themselves; completion and cancellation are always manual. Advancement happens lazily on every list read, so there is no cron job to babysit.
 
@@ -360,7 +414,7 @@ stateDiagram-v2
 
 ---
 
-## 9. Database tables and relationships
+## 10. Database tables and relationships
 
 The Supabase schema. Each box is a table; arrows mark foreign keys / soft links.
 
@@ -368,10 +422,31 @@ The Supabase schema. Each box is a table; arrows mark foreign keys / soft links.
 erDiagram
     orders }o..o| coupons : "redeemed via coupon_code"
     orders }o..o{ deals : "items[].deal_id (jsonb soft link)"
+    branches ||--o{ orders : "branch_id (FK)"
+    branches ||--o{ reservations : "branch_id (FK)"
+
+    branches {
+        uuid id PK
+        text slug UK
+        text name
+        text short_name
+        text address_line1
+        text city
+        text phone
+        text email
+        text google_maps_url
+        numeric google_rating
+        int google_review_count
+        boolean is_main
+        boolean is_active
+        int sort_order
+        timestamptz created_at
+    }
 
     orders {
         uuid id PK
         text number
+        uuid branch_id FK
         text customer_name
         text customer_phone
         text customer_email
@@ -385,7 +460,7 @@ erDiagram
         text payment_method
         text payment_status
         text status
-        timestamptz status_changed_at
+        timestamptz auto_advance_at
         text notes
         timestamptz created_at
     }
@@ -436,6 +511,7 @@ erDiagram
 
     reservations {
         uuid id PK
+        uuid branch_id FK
         text customer_name
         text customer_phone
         text customer_email
@@ -480,7 +556,7 @@ erDiagram
 
 ---
 
-## 10. Hosting + deployment pipeline
+## 11. Hosting + deployment pipeline
 
 What happens between a `git push` and the live site updating.
 
@@ -520,4 +596,4 @@ flowchart LR
    - Walk the client through it using the short paragraph above the block as your script.
 4. Mermaid Live has an **Export → PNG / SVG** button if you want to save each diagram as an image for a slide deck.
 
-> 💡 Tip — diagrams 1, 4, and 9 are the most impressive for a non-technical client. Lead with those, then drill into the order journey (diagram 2) and the deals/coupons flow (diagram 5) if they want to go deeper. Diagram 6 (pricing engine) is the one to use whenever the client asks "can a customer hack the price?" — the answer is no, and that picture shows why.
+> 💡 Tip — diagrams **1**, **2** (multi-branch), **5** (admin) and **10** (ER) are the most impressive for a non-technical client. Lead with diagram 1 to show the whole map, then diagram 2 to explain how Phase 4 and DHA-1 are kept separate end-to-end. Drill into the order journey (diagram 3) and the deals/coupons flow (diagram 6) only if they want depth. Diagram 7 (pricing engine) is the one to use whenever the client asks "can a customer hack the price?" — the answer is no, and that picture shows why.

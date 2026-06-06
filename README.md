@@ -1,8 +1,8 @@
 # Meseta Coffee — full-stack café platform
 
-A production-ready public website + operator dashboard for **Meseta Coffee** (Bahria Town Phase 4, Rawalpindi). Built with **Next.js 14 (App Router)**, **Tailwind CSS**, **Supabase** (Auth + Postgres + RLS) and **Safepay** (Pakistan card payments).
+A production-ready public website + operator dashboard for **Meseta Coffee** (Bahria Town Phase 4 — main, and DHA Phase 1 — Rawalpindi). Built with **Next.js 14 (App Router)**, **Tailwind CSS**, **Supabase** (Auth + Postgres + RLS) and **Safepay** (Pakistan card payments).
 
-> Online ordering, table reservations, contact + reviews on the customer side. Full inventory, deals, coupons, order pipeline, content management and a live store-status / busyness controller on the admin side.
+> Online ordering, table reservations, contact + reviews on the customer side. Multi-branch routing, full inventory, deals, coupons, order pipeline, content management and a live store-status / busyness controller on the admin side. Every order and reservation is tagged to the branch the customer chose — admins filter the dashboard, lists and CSV exports by branch with one click.
 
 ---
 
@@ -26,15 +26,16 @@ A production-ready public website + operator dashboard for **Meseta Coffee** (Ba
 2. [Tech stack](#tech-stack)
 3. [Local development](#local-development)
 4. [Environment variables](#environment-variables)
-5. [Database (Supabase)](#database-supabase)
-6. [Bootstrap admin user](#bootstrap-admin-user)
-7. [Safepay (card payments)](#safepay-card-payments)
-8. [Architecture & key concepts](#architecture--key-concepts)
-9. [Project structure](#project-structure)
-10. [Common admin workflows](#common-admin-workflows)
-11. [Customising](#customising)
-12. [Deployment](#deployment)
-13. [Troubleshooting](#troubleshooting)
+5. [Multi-branch](#multi-branch)
+6. [Database (Supabase)](#database-supabase)
+7. [Bootstrap admin user](#bootstrap-admin-user)
+8. [Safepay (card payments)](#safepay-card-payments)
+9. [Architecture & key concepts](#architecture--key-concepts)
+10. [Project structure](#project-structure)
+11. [Common admin workflows](#common-admin-workflows)
+12. [Customising](#customising)
+13. [Deployment](#deployment)
+14. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -62,6 +63,12 @@ A production-ready public website + operator dashboard for **Meseta Coffee** (Ba
 - **Card payments via Safepay** (sandbox + production); **cash on pickup / cash on delivery** label is fulfilment-aware.
 - Live store-status guard: checkout is blocked when the store is closed (manual switch OR outside published hours).
 
+**Multi-branch picker**
+- First-time customer reaching `/menu`, `/menu/[slug]`, `/checkout` or `/reservations` is prompted: "Which Meseta are you ordering from?" — modal with one card per branch (name, address, Google rating + review count).
+- Choice persists in localStorage; navbar chip + mobile-menu chip reopen the picker on demand.
+- A `BranchBanner` at the top of `/menu` and each item page confirms which outlet the order will go to.
+- Server validates the claimed `branch_id` against the active `branches` table at every `/api/checkout` and `/api/reservations` call — invalid or missing falls back silently to the main branch.
+
 **Static + dynamic content**
 - Static seed data (`src/lib/data/*.ts`) for menu, reviews, gallery — instant rendering, zero-database fallback.
 - Supabase override: when the DB has rows, the site reads from there. Falls back to seed on read errors.
@@ -72,10 +79,10 @@ Authenticated area for café staff. Protected by Supabase Auth + an `admin_users
 
 | Section | What it does |
 |---|---|
-| **Dashboard** | KPI cards (revenue today, AOV, queue size, active menu items), busyness pill, recent orders (mobile cards + desktop table), 14-day order trend, attention-needed inbox, top items |
+| **Dashboard** | KPI cards (revenue today, AOV, queue size, active menu items), **branch filter chips** that re-scope every KPI + 14-day chart + top items + recent orders, busyness pill, attention-needed inbox |
 | **Revenue** | Range tabs (Today / Yesterday / 7d / 30d / Month / All / Custom), per-day bar chart |
-| **Orders** | Filter by status, search by number/name/phone, click into detail to walk through state machine, quick **Call / WhatsApp customer** buttons |
-| **Reservations** | Filter + search + status chips (pending → confirmed / seated / cancelled / no-show) |
+| **Orders** | Filter by status, search by number/name/phone, **branch filter chips**, branch shown under each order, click into detail (branch shown in eyebrow). Quick **Call / WhatsApp customer** buttons |
+| **Reservations** | Filter + search + status chips (pending → confirmed / seated / cancelled / no-show), **branch filter chips**, branch shown under each customer name |
 | **Menu** | CRUD, bulk enable/disable, sort order, prices, images, tags |
 | **Deals** | Scheduled promotions (% / fixed, whole-menu / category / single item) |
 | **Coupons** | Discount codes with min spend, expiry, max-uses, redemption counter |
@@ -161,6 +168,55 @@ Without Safepay credentials the site still functions — the card option in chec
 
 ---
 
+## Multi-branch
+
+Meseta runs two physical outlets, both in Rawalpindi:
+
+| Branch | Address | Google | Role |
+|---|---|---|---|
+| **Phase 4** (main / flagship) | The Riviera, Street 41-A, Phase 4 Bahria Town | 4.5★ · 1,072+ reviews | `is_main = true` |
+| **DHA-1** | Sector F, DHA Phase 1 | 4.3★ · 222 reviews | newer outlet |
+
+Both are seeded into the `branches` table by [migration 008](supabase/migrations/008_branches.sql).
+
+### Customer side
+
+- Visitor lands on `/`, `/about`, `/gallery`, `/reviews`, `/contact` — the picker stays quiet so the brand story is uninterrupted.
+- The moment the visitor reaches an order-intent route (`/menu`, `/menu/[slug]`, `/checkout`, `/reservations`) the picker modal opens — *if* they have not chosen yet.
+- Choice persists in `localStorage` (`meseta.branch.id.v1`).
+- A persistent **branch chip** in the navbar (desktop) and at the top of the mobile menu re-opens the picker on demand. Hidden on single-branch deployments.
+- A `BranchBanner` card sits above the menu grid and on each item page: *"Ordering from Phase 4 ★ 4.5 · 1,072 — Switch branch"*.
+- Checkout and reservation forms each show a "Ordering from / Reserving at *X* [Switch]" trust chip.
+- Order success page tells the customer *where* to pick up: *"Pickup at Phase 4 — The Riviera, Bahria Town."*
+
+### Admin side
+
+- **Dashboard** has a branch filter chip row at the top that re-scopes every KPI, the 14-day chart, the recent-orders list and the top-items list to a single branch. "View all" deep-links forward the active branch filter.
+- **Orders** and **Reservations** lists have the same branch filter chip row. Branch is shown under each row, included as a column in the CSV export, and shown in the eyebrow of the order detail page.
+- All CSV exports respect the active branch filter.
+
+### Server guarantees
+
+- `/api/checkout` and `/api/reservations` never trust the client's claimed `branch_id`. Both validate it against the active `branches` table; an invalid or missing id silently falls back to the main branch. A malicious client cannot tag an order with a branch that does not exist or has been deactivated.
+- Every insert that adds `branch_id` is wrapped in a "retry without the column" fallback, so even pre-migration environments keep accepting orders and reservations.
+- `getActiveBranches()` returns `[]` on error instead of throwing — the site keeps rendering if the `branches` table is missing.
+
+### Item availability hook (Phase 3 ready)
+
+[`isItemAvailableAtBranch(slug, branchId, availability?)`](src/lib/data/branches-helpers.ts) is a pure helper that returns `true` in Phase 1 (shared menu). Phase 3 will pass a per-branch availability `Map<branchId, Set<slug>>` derived from a `branch_menu_items` table, at which point every call site will start gating "add to cart" automatically — no UI changes needed.
+
+### Adding a third branch
+
+```sql
+insert into public.branches (slug, name, short_name, address_line1, city, sort_order, is_main)
+values
+  ('gulberg', 'Meseta Coffee — Gulberg', 'Gulberg', 'MM Alam Road', 'Lahore', 3, false);
+```
+
+That one row is enough — the picker, the navbar chip, the admin filters and the CSV exports all populate automatically.
+
+---
+
 ## Database (Supabase)
 
 ### Create a project
@@ -181,6 +237,7 @@ Open the Supabase **SQL Editor** and paste each file's contents, in this order, 
 | 005 | [`005_website_reviews.sql`](supabase/migrations/005_website_reviews.sql) | Allow `source = 'website'` in reviews + public insert policy |
 | 006 | [`006_store_status_until.sql`](supabase/migrations/006_store_status_until.sql) | (Legacy, optional) adds `closed_until` — the app no longer requires it |
 | 007 | [`007_busyness.sql`](supabase/migrations/007_busyness.sql) | `store_settings.busyness_level` + `auto_progress_minutes`; `orders.auto_advance_at` + index |
+| 008 | [`008_branches.sql`](supabase/migrations/008_branches.sql) | `branches` table (Phase 4 + DHA-1 seeded), nullable `branch_id` FK on `orders` + `reservations` with indexes, backfill existing rows to Phase 4, RLS (anon reads active branches only) |
 
 ### Tables created
 
@@ -189,14 +246,15 @@ Open the Supabase **SQL Editor** and paste each file's contents, in this order, 
 | `menu_categories` | Drink/food categories | read |
 | `menu_items` | Menu items (bestseller, signature, `is_disabled`, price, image, tags) | read |
 | `reviews` | Google / Foodpanda / IG / website reviews | read (+ insert for website) |
-| `reservations` | Table bookings | insert |
+| `reservations` | Table bookings — carries `branch_id` (FK → `branches`) | insert |
 | `contact_messages` | Contact-form inbox | insert |
 | `gallery_images` | Photo gallery | read |
-| `orders` | Customer orders + Safepay tracker + `auto_advance_at` | insert (via service-role API only) |
+| `orders` | Customer orders + Safepay tracker + `auto_advance_at` + `branch_id` (FK → `branches`) | insert (via service-role API only) |
 | `admin_users` | Maps `auth.users` → admin role (owner/admin/staff) | — (admin only) |
 | `store_settings` | Singleton: open/closed, hours, contact, banner, payment toggles, busyness | read |
 | `deals` | Scheduled promotions | read active rows |
 | `coupons` | Discount codes | read active rows |
+| `branches` | Physical outlets — slug, name, address, contact, Google rating + review count, `is_main`, `is_active`, `sort_order` | read active rows |
 
 **RLS pattern:**
 - Reads use the **anon key** + RLS-allowed public policies.
@@ -350,7 +408,7 @@ meseta-coffee/
 ├── netlify.toml
 ├── public/                          # static assets
 ├── supabase/
-│   └── migrations/                  # 001 → 007 SQL migrations
+│   └── migrations/                  # 001 → 008 SQL migrations
 └── src/
     ├── middleware.ts                # Supabase auth-cookie refresh + x-pathname
     ├── app/
@@ -402,6 +460,7 @@ meseta-coffee/
     │   ├── PurgeServiceWorker.tsx, CleanPreviewUrl.tsx, ClickEffect.tsx
     │   ├── CoffeeLoader.tsx, RouteLoading.tsx
     │   ├── anim/                    # CoffeeCup, LatteArt, beans, AnimatedRating, LiveBrewing, StoreStatusBadge
+    │   ├── branch/                  # BranchPicker (modal), BranchChip (navbar), BranchBanner (menu)
     │   ├── cart/                    # CartFab, CartDrawer, AddToOrderButton
     │   ├── checkout/                # PaymentMethodPicker
     │   └── admin/                   # AdminSidebar, AdminTopBar, AdminUIProvider, AdminToast,
@@ -411,6 +470,8 @@ meseta-coffee/
     └── lib/
         ├── utils.ts
         ├── data/                    # site, menu, reviews, gallery (static seed + helpers)
+        │   ├── branches.ts          # SERVER-only fetchers (getActiveBranches, getBranchBySlug, getMainBranch)
+        │   └── branches-helpers.ts  # client-safe Branch type + branchShortAddress + isItemAvailableAtBranch
         ├── hours.ts                 # PKT clock + open/close + format/parse (12h + 24h)
         ├── supabase/
         │   ├── client.ts            # browser client
@@ -418,17 +479,19 @@ meseta-coffee/
         ├── store-status/
         │   ├── StoreStatusProvider.tsx
         │   └── useLiveStoreStatus.ts
+        ├── branch/
+        │   └── BranchProvider.tsx   # client context + localStorage persistence + useBranch()
         ├── cart/CartProvider.tsx
         ├── safepay/client.ts        # Safepay session init + webhook signature verify
         └── admin/
             ├── auth.ts              # getCurrentAdmin + requireAdmin
             ├── store.ts             # store_settings reads + updates
             ├── orders.ts            # admin order list/detail + state transitions + tickAutoAdvance
-            ├── order-types.ts       # OrderStatus, STATUS_FLOW
+            ├── order-types.ts       # OrderStatus, STATUS_FLOW, AdminOrder (includes branch_id)
             ├── busyness.ts          # updateBusyness server action
             ├── busyness-types.ts    # BusynessLevel + multipliers + nextAutoAdvanceAt
             ├── deals.ts, coupons.ts
-            ├── inbox.ts             # reservations, messages, reviews
+            ├── inbox.ts             # reservations, messages, reviews (ReservationRow has branch_id)
             └── menu.ts              # menu CRUD
 ```
 
@@ -464,6 +527,12 @@ Top bar → click the green "Open" pill → land on `/admin/store-status` → to
 
 `/admin/orders` → click an order → the right rail shows next-state buttons matching `STATUS_FLOW`. Customer name, phone, email and 1-tap Call / WhatsApp buttons are right there in the Customer card.
 
+### See only Phase 4 (or only DHA-1) on the dashboard
+
+`/admin` → top of the page → click the **Phase 4** or **DHA-1** chip → every KPI, the 14-day chart, the recent-orders list and the top-items list re-scope to that branch. The URL becomes `?branch=<id>` so the view is bookmarkable. Click **All branches** to clear.
+
+The same chip row exists on `/admin/orders`, `/admin/reservations` and forwards through to the CSV exports — so "all the orders that hit DHA-1 last week" is a 3-click pull (Branch → Last 7 days → Export CSV).
+
 ---
 
 ## Customising
@@ -496,7 +565,8 @@ Anything seeded statically is **read from DB when present, falls back to seed wh
 
 ### Post-deploy checklist
 
-- [ ] All 7 migrations applied (via Supabase SQL Editor).
+- [ ] All 8 migrations applied (via Supabase SQL Editor).
+- [ ] `branches` table seeded — confirm Phase 4 (`is_main = true`) and DHA-1 are both `is_active = true`.
 - [ ] Bootstrap admin user created in Auth AND `admin_users`.
 - [ ] Safepay webhook URL updated to production: `https://your-domain/api/safepay/webhook`.
 - [ ] `NEXT_PUBLIC_SITE_URL` updated in Netlify env vars.
