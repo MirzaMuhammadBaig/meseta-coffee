@@ -37,7 +37,7 @@ function sanitize(e: React.ChangeEvent<HTMLInputElement>, pattern: RegExp) {
 export default function CheckoutPage() {
   const router = useRouter();
   const { lines, count, couponCode, clear } = useCart();
-  const { current: currentBranch } = useBranch();
+  const { current: currentBranch, branches } = useBranch();
   // Effective open state — admin switch combined with published hours.
   const storeStatus = useLiveStoreStatus();
   const storeOpen = storeStatus.open;
@@ -143,7 +143,7 @@ export default function CheckoutPage() {
           minutes.
         </p>
 
-        {currentBranch && (
+        {currentBranch && branches.length > 1 && (
           <div className="mt-4 inline-flex flex-wrap items-center gap-2 rounded-full border border-coffee-100 bg-cream-100/60 px-3 py-1.5 text-xs text-coffee-600">
             <MapPin className="h-3.5 w-3.5 text-gold-500" />
             <span>
