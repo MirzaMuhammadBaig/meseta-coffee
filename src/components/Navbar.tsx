@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Menu, X, Coffee } from "lucide-react";
+import BranchChip from "@/components/branch/BranchChip";
 import { cn } from "@/lib/utils";
 
 const links = [
@@ -132,15 +133,18 @@ export default function Navbar() {
           })}
         </nav>
 
-        <Link
-          href="/reservations"
-          className={cn(
-            "btn-primary hidden md:inline-flex transition-all duration-300",
-            scrolled ? "px-5 py-2.5 text-xs" : "px-6 py-3 text-sm",
-          )}
-        >
-          Reserve a table
-        </Link>
+        <div className="hidden items-center gap-3 md:flex">
+          <BranchChip />
+          <Link
+            href="/reservations"
+            className={cn(
+              "btn-primary inline-flex transition-all duration-300",
+              scrolled ? "px-5 py-2.5 text-xs" : "px-6 py-3 text-sm",
+            )}
+          >
+            Reserve a table
+          </Link>
+        </div>
 
         <button
           aria-label="Toggle navigation"
@@ -191,6 +195,12 @@ export default function Navbar() {
         )}
       >
         <nav className="container-base flex flex-col gap-1 py-3">
+          <div
+            className="mb-1 px-1"
+            onClick={() => setOpen(false)}
+          >
+            <BranchChip />
+          </div>
           {links.map((l) => {
             const active =
               l.href === "/" ? pathname === "/" : pathname?.startsWith(l.href);

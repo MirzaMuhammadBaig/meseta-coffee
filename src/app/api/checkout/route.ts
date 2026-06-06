@@ -25,6 +25,7 @@ type Payload = {
   payment_method?: unknown;
   items?: unknown;
   coupon_code?: unknown;
+  branch_id?: unknown;
 };
 
 type IncomingItem = { slug?: unknown; qty?: unknown };
@@ -199,7 +200,42 @@ export async function POST(req: Request) {
     },
   );
 
-  const baseRow = {
+  // Resolve the branch this order belongs to. The client sends the
+  // chosen branch_id from the BranchProvider. If it is missing or does
+  // not map to an active branch, fall back to the main branch so a
+  // legacy client can never produce an orphaned order.
+  const claimedBranchId =
+    typeof body.branch_id === "string" && body.branch_id.trim()
+      ? body.branch_id.trim()
+      : null;
+  let branchId: string | null = null;
+  try {
+    const branchQuery = supabase
+      .from("branches")
+      .select("id")
+      .eq("is_active", true);
+    const { data: branchRows } = claimedBranchId
+      ? await branchQuery.eq("id", claimedBranchId).maybeSingle()
+          .then((r) => ({ data: r.data ? [r.data] : [] }))
+      : await branchQuery.eq("is_main", true).limit(1);
+    branchId = (branchRows?.[0] as { id: string } | undefined)?.id ?? null;
+    if (!branchId) {
+      // Claimed branch not active — silently fall through to main.
+      const { data: mainRows } = await supabase
+        .from("branches")
+        .select("id")
+        .eq("is_active", true)
+        .eq("is_main", true)
+        .limit(1);
+      branchId = (mainRows?.[0] as { id: string } | undefined)?.id ?? null;
+    }
+  } catch {
+    // branches table not migrated yet — leave branch_id null and let the
+    // defensive insert retry handle it below.
+    branchId = null;
+  }
+
+  const baseRow: Record<string, unknown> = {
     number: orderNumber,
     customer_name: name,
     customer_phone: phone,
@@ -214,6 +250,7 @@ export async function POST(req: Request) {
     payment_method: paymentMethod,
     notes,
   };
+  if (branchId) baseRow.branch_id = branchId;
 
   let { data: order, error: insertError } = await supabase
     .from("orders")
@@ -233,6 +270,22 @@ export async function POST(req: Request) {
     const retry = await supabase
       .from("orders")
       .insert(baseRow)
+      .select("id, number")
+      .single();
+    order = retry.data;
+    insertError = retry.error;
+  }
+
+  // Migration 008 not applied yet? Drop branch_id and retry so the order
+  // still places on environments where the column does not exist yet.
+  if (insertError && /branch_id/i.test(insertError.message ?? "")) {
+    console.warn(
+      "[checkout] branch_id column missing — retrying without it (apply migration 008).",
+    );
+    const { branch_id: _omit, ...withoutBranch } = baseRow;
+    const retry = await supabase
+      .from("orders")
+      .insert(withoutBranch)
       .select("id, number")
       .single();
     order = retry.data;

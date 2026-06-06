@@ -12,6 +12,7 @@ import {
   Store,
 } from "lucide-react";
 import { useCart } from "@/lib/cart/CartProvider";
+import { useBranch } from "@/lib/branch/BranchProvider";
 import {
   closedReasonMessage,
   useLiveStoreStatus,
@@ -36,6 +37,7 @@ function sanitize(e: React.ChangeEvent<HTMLInputElement>, pattern: RegExp) {
 export default function CheckoutPage() {
   const router = useRouter();
   const { lines, count, couponCode, clear } = useCart();
+  const { current: currentBranch } = useBranch();
   // Effective open state — admin switch combined with published hours.
   const storeStatus = useLiveStoreStatus();
   const storeOpen = storeStatus.open;
@@ -82,6 +84,7 @@ export default function CheckoutPage() {
       payment_method: method,
       items: lines.map((l) => ({ slug: l.slug, qty: l.qty })),
       coupon_code: couponCode ?? null,
+      branch_id: currentBranch?.id ?? null,
     };
 
     try {
@@ -139,6 +142,27 @@ export default function CheckoutPage() {
           One more step. Pay securely and we will have your order ready in
           minutes.
         </p>
+
+        {currentBranch && (
+          <div className="mt-4 inline-flex flex-wrap items-center gap-2 rounded-full border border-coffee-100 bg-cream-100/60 px-3 py-1.5 text-xs text-coffee-600">
+            <MapPin className="h-3.5 w-3.5 text-gold-500" />
+            <span>
+              Ordering from{" "}
+              <span className="font-semibold text-coffee-800">
+                {currentBranch.short_name ?? currentBranch.name}
+              </span>
+            </span>
+            <button
+              type="button"
+              onClick={() =>
+                window.dispatchEvent(new Event("meseta:open-branch-picker"))
+              }
+              className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-coffee-700 ring-1 ring-coffee-100 transition hover:ring-coffee-300"
+            >
+              Switch
+            </button>
+          </div>
+        )}
 
         <div className="mt-10 grid gap-8 lg:grid-cols-[1.6fr_1fr] lg:gap-12">
           {/* ─── Form column ───────────────────────────── */}

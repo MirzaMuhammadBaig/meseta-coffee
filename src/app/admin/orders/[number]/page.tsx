@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, Mail, MessageCircle, Phone } from "lucide-react";
 import PageHeading from "@/components/admin/PageHeading";
 import { getOrderByNumber, updateOrderStatus } from "@/lib/admin/orders";
+import { getActiveBranches } from "@/lib/data/branches";
 import { STATUS_FLOW, type OrderStatus } from "@/lib/admin/order-types";
 import { formatPkr, formatDate } from "@/lib/utils";
 
@@ -31,9 +32,15 @@ export default async function AdminOrderDetailPage({
 }: {
   params: { number: string };
 }) {
-  const order = await getOrderByNumber(params.number);
+  const [order, branches] = await Promise.all([
+    getOrderByNumber(params.number),
+    getActiveBranches(),
+  ]);
   if (!order) notFound();
 
+  const branch = order.branch_id
+    ? branches.find((b) => b.id === order.branch_id) ?? null
+    : null;
   const next = STATUS_FLOW[order.status];
 
   // For tel:/wa.me links — strip everything except digits.
@@ -57,7 +64,7 @@ export default async function AdminOrderDetailPage({
       </Link>
 
       <PageHeading
-        eyebrow={`Order · ${formatDate(order.created_at)}`}
+        eyebrow={`Order · ${formatDate(order.created_at)}${branch ? ` · ${branch.short_name ?? branch.name}` : ""}`}
         title={order.number}
         description={`${order.customer_name} · ${order.customer_phone}`}
       />

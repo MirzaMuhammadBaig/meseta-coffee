@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { listOrders } from "@/lib/admin/orders";
+import { getActiveBranches } from "@/lib/data/branches";
 import type { OrderStatus } from "@/lib/admin/order-types";
 
 export const runtime = "nodejs";
@@ -17,11 +18,19 @@ export async function GET(req: NextRequest) {
   const q = url.searchParams.get("q") ?? "";
   const from = url.searchParams.get("from");
   const to = url.searchParams.get("to");
+  const branchId = url.searchParams.get("branch") ?? "all";
 
-  const orders = await listOrders({ status, q, from, to });
+  const [orders, branches] = await Promise.all([
+    listOrders({ status, q, from, to, branchId }),
+    getActiveBranches(),
+  ]);
+  const branchName = new Map(
+    branches.map((b) => [b.id, b.short_name ?? b.name]),
+  );
 
   const headers = [
     "Order number",
+    "Branch",
     "Created at (ISO)",
     "Customer name",
     "Phone",
@@ -41,6 +50,7 @@ export async function GET(req: NextRequest) {
 
   const rows = orders.map((o) => [
     o.number,
+    o.branch_id ? branchName.get(o.branch_id) ?? "" : "",
     o.created_at,
     o.customer_name,
     o.customer_phone,

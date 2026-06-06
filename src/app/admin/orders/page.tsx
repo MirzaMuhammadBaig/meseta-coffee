@@ -3,6 +3,7 @@ import { Download, Search } from "lucide-react";
 import PageHeading from "@/components/admin/PageHeading";
 import DateRangeFilter from "@/components/admin/DateRangeFilter";
 import { listOrders } from "@/lib/admin/orders";
+import { getActiveBranches } from "@/lib/data/branches";
 import type { OrderStatus } from "@/lib/admin/order-types";
 import { describeRange } from "@/lib/admin/date-range";
 import { formatPkr, formatDate } from "@/lib/utils";
@@ -40,19 +41,33 @@ const PAY_TONE: Record<string, string> = {
 export default async function AdminOrdersPage({
   searchParams,
 }: {
-  searchParams: { status?: string; q?: string; from?: string; to?: string };
+  searchParams: {
+    status?: string;
+    q?: string;
+    from?: string;
+    to?: string;
+    branch?: string;
+  };
 }) {
   const status = (searchParams.status as OrderStatus | "all") ?? "all";
   const q = searchParams.q ?? "";
   const from = searchParams.from ?? null;
   const to = searchParams.to ?? null;
-  const orders = await listOrders({ status, q, from, to });
+  const branchId = searchParams.branch ?? "all";
+  const [orders, branches] = await Promise.all([
+    listOrders({ status, q, from, to, branchId }),
+    getActiveBranches(),
+  ]);
+  const branchShort = new Map(
+    branches.map((b) => [b.id, b.short_name ?? b.name]),
+  );
 
   // Preserve filter state across the chip + search-bar links.
   const baseParams = new URLSearchParams();
   if (q) baseParams.set("q", q);
   if (from) baseParams.set("from", from);
   if (to) baseParams.set("to", to);
+  if (branchId !== "all") baseParams.set("branch", branchId);
 
   const csvHref = `/api/admin/orders/csv?${(() => {
     const sp = new URLSearchParams(baseParams);
@@ -78,10 +93,44 @@ export default async function AdminOrdersPage({
 
       <DateRangeFilter className="mb-4" />
 
+      {branches.length > 1 && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-coffee-500">
+          <span className="font-semibold uppercase tracking-[0.18em] text-coffee-700">
+            Branch
+          </span>
+          {[{ id: "all", short_name: "All branches", name: "All branches" }, ...branches].map(
+            (b) => {
+              const active = (branchId ?? "all") === b.id;
+              const sp = new URLSearchParams(baseParams);
+              if (b.id === "all") sp.delete("branch");
+              else sp.set("branch", b.id);
+              if (status !== "all") sp.set("status", status);
+              return (
+                <Link
+                  key={b.id}
+                  href={`/admin/orders?${sp.toString()}`}
+                  className={
+                    "rounded-full px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] transition " +
+                    (active
+                      ? "bg-coffee-700 text-cream-50"
+                      : "border border-coffee-100 bg-white text-coffee-600 hover:border-coffee-300")
+                  }
+                >
+                  {b.short_name ?? b.name}
+                </Link>
+              );
+            },
+          )}
+        </div>
+      )}
+
       <form className="mb-3 flex flex-wrap items-center gap-2">
         <input type="hidden" name="status" value={status} />
         {from && <input type="hidden" name="from" value={from} />}
         {to && <input type="hidden" name="to" value={to} />}
+        {branchId !== "all" && (
+          <input type="hidden" name="branch" value={branchId} />
+        )}
         <div className="relative flex-1 sm:min-w-[200px]">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-coffee-400" />
           <input
@@ -167,6 +216,11 @@ export default async function AdminOrdersPage({
                     </Link>
                     <p className="mt-0.5 text-[10px] uppercase tracking-[0.18em] text-coffee-400">
                       {o.fulfilment}
+                      {o.branch_id && branchShort.get(o.branch_id) && (
+                        <span className="ml-1.5 text-coffee-500">
+                          · {branchShort.get(o.branch_id)}
+                        </span>
+                      )}
                     </p>
                   </td>
                   <td className="px-5 py-3">

@@ -22,6 +22,8 @@ export type ReservationRow = {
     | "cancelled"
     | "no_show";
   created_at: string;
+  /** From migration 008 — null on legacy rows or pre-migration environments. */
+  branch_id: string | null;
 };
 
 export async function listReservations(filter?: {
@@ -30,6 +32,8 @@ export async function listReservations(filter?: {
   /** PKT day strings YYYY-MM-DD (inclusive). Filter on `reserved_for`. */
   from?: string | null;
   to?: string | null;
+  /** Branch id to restrict to. "all" or undefined = every branch. */
+  branchId?: string | "all" | null;
 }): Promise<ReservationRow[]> {
   await requireAdmin();
   const supabase = createSupabaseServerClient();
@@ -48,6 +52,9 @@ export async function listReservations(filter?: {
       `name.ilike.${term},phone.ilike.${term},email.ilike.${term},notes.ilike.${term}`,
     );
   }
+  if (filter?.branchId && filter.branchId !== "all") {
+    q = q.eq("branch_id", filter.branchId);
+  }
 
   // Filter on `reserved_for` — admin cares about WHEN the reservation is,
   // not when it was booked.
@@ -55,7 +62,17 @@ export async function listReservations(filter?: {
   if (fromIso) q = q.gte("reserved_for", fromIso);
   if (toIso) q = q.lte("reserved_for", toIso);
 
-  const { data, error } = await q;
+  let { data, error } = await q;
+  if (error && /branch_id/i.test(error.message ?? "")) {
+    // Migration 008 not applied — retry without the branch filter.
+    const retry = await supabase
+      .from("reservations")
+      .select("*")
+      .order("reserved_for", { ascending: false })
+      .limit(500);
+    data = retry.data;
+    error = retry.error;
+  }
   if (error) throw error;
   return (data as ReservationRow[]) ?? [];
 }

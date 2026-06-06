@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { listReservations } from "@/lib/admin/inbox";
+import { getActiveBranches } from "@/lib/data/branches";
 
 export const runtime = "nodejs";
 
@@ -21,11 +22,19 @@ export async function GET(req: NextRequest) {
   const q = url.searchParams.get("q") ?? "";
   const from = url.searchParams.get("from");
   const to = url.searchParams.get("to");
+  const branchId = url.searchParams.get("branch") ?? "all";
 
-  const rows = await listReservations({ status, q, from, to });
+  const [rows, branches] = await Promise.all([
+    listReservations({ status, q, from, to, branchId }),
+    getActiveBranches(),
+  ]);
+  const branchName = new Map(
+    branches.map((b) => [b.id, b.short_name ?? b.name]),
+  );
 
   const headers = [
     "Name",
+    "Branch",
     "Phone",
     "Email",
     "Party size",
@@ -38,6 +47,7 @@ export async function GET(req: NextRequest) {
 
   const data = rows.map((r) => [
     r.name,
+    r.branch_id ? branchName.get(r.branch_id) ?? "" : "",
     r.phone,
     r.email ?? "",
     String(r.party_size),

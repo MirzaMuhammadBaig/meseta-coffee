@@ -5,7 +5,10 @@ import CartDrawer from "@/components/cart/CartDrawer";
 import StoreClosedBanner from "@/components/StoreClosedBanner";
 import { CartProvider } from "@/lib/cart/CartProvider";
 import { StoreStatusProvider } from "@/lib/store-status/StoreStatusProvider";
+import { BranchProvider } from "@/lib/branch/BranchProvider";
+import BranchPicker from "@/components/branch/BranchPicker";
 import { getStoreSettings } from "@/lib/admin/store";
+import { getActiveBranches } from "@/lib/data/branches";
 import { getNextOpening, isWithinHours } from "@/lib/hours";
 import { site } from "@/lib/data/site";
 
@@ -19,7 +22,10 @@ export default async function SiteLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const settings = await getStoreSettings().catch(() => null);
+  const [settings, branches] = await Promise.all([
+    getStoreSettings().catch(() => null),
+    getActiveBranches().catch(() => []),
+  ]);
   const adminOpen = settings?.is_open ?? true;
 
   // Live hours from the admin's edits (DB), with the static seed as a
@@ -65,17 +71,20 @@ export default async function SiteLayout({
         hours,
       }}
     >
-      <CartProvider>
-        {isClosed && <StoreClosedBanner message={closedBannerMessage} />}
-        {showAnnouncement && (
-          <StoreClosedBanner tone="info" message={announcementText} />
-        )}
-        <Navbar />
-        <main className="min-h-[60vh] overflow-x-clip">{children}</main>
-        <Footer />
-        <CartFab />
-        <CartDrawer />
-      </CartProvider>
+      <BranchProvider branches={branches}>
+        <CartProvider>
+          {isClosed && <StoreClosedBanner message={closedBannerMessage} />}
+          {showAnnouncement && (
+            <StoreClosedBanner tone="info" message={announcementText} />
+          )}
+          <Navbar />
+          <main className="min-h-[60vh] overflow-x-clip">{children}</main>
+          <Footer />
+          <CartFab />
+          <CartDrawer />
+          <BranchPicker />
+        </CartProvider>
+      </BranchProvider>
     </StoreStatusProvider>
   );
 }

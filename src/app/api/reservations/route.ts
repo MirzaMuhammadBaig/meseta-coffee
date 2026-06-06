@@ -65,8 +65,40 @@ export async function POST(req: Request) {
     }
   }
 
+  // Resolve the branch the customer is reserving at. Same defensive
+  // pattern as /api/checkout — fall back to the main branch if the
+  // claimed one is missing or invalid, so a legacy client cannot
+  // create an orphaned reservation.
   const supabase = createSupabaseServiceClient();
-  const { error } = await supabase.from("reservations").insert({
+  const claimedBranchId =
+    typeof body.branch_id === "string" && (body.branch_id as string).trim()
+      ? (body.branch_id as string).trim()
+      : null;
+  let branchId: string | null = null;
+  try {
+    if (claimedBranchId) {
+      const { data: b } = await supabase
+        .from("branches")
+        .select("id")
+        .eq("id", claimedBranchId)
+        .eq("is_active", true)
+        .maybeSingle();
+      branchId = (b as { id: string } | null)?.id ?? null;
+    }
+    if (!branchId) {
+      const { data: main } = await supabase
+        .from("branches")
+        .select("id")
+        .eq("is_active", true)
+        .eq("is_main", true)
+        .maybeSingle();
+      branchId = (main as { id: string } | null)?.id ?? null;
+    }
+  } catch {
+    branchId = null;
+  }
+
+  const row: Record<string, unknown> = {
     name,
     phone,
     email,
@@ -74,7 +106,18 @@ export async function POST(req: Request) {
     reserved_for: start.toISOString(),
     ends_at: endsAt ? endsAt.toISOString() : null,
     notes,
-  });
+  };
+  if (branchId) row.branch_id = branchId;
+
+  let { error } = await supabase.from("reservations").insert(row);
+
+  // Migration 008 not applied yet? Drop branch_id and retry so the
+  // reservation still lands.
+  if (error && /branch_id/i.test(error.message ?? "")) {
+    const { branch_id: _omit, ...withoutBranch } = row;
+    const retry = await supabase.from("reservations").insert(withoutBranch);
+    error = retry.error;
+  }
 
   if (error) {
     console.error("reservation insert failed", error);

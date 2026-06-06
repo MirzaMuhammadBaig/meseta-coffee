@@ -14,6 +14,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { useCart } from "@/lib/cart/CartProvider";
+import { useBranch } from "@/lib/branch/BranchProvider";
 import { site } from "@/lib/data/site";
 
 /**
@@ -35,6 +36,7 @@ function SuccessView() {
     params.get("fulfilment") === "delivery" ? "delivery" : "pickup";
   const payment = params.get("payment") === "card" ? "card" : "cash";
   const { clear } = useCart();
+  const { current: currentBranch } = useBranch();
 
   // Empty the cart now that the order is placed.
   useEffect(() => {
@@ -93,8 +95,16 @@ function SuccessView() {
                     Fulfilment
                   </p>
                   <p className="mt-0.5 text-sm font-medium text-coffee-800">
-                    {isPickup ? "Pickup at The Riviera" : "Delivery in Bahria Town"}
+                    {isPickup
+                      ? `Pickup at ${currentBranch?.short_name ?? currentBranch?.name ?? "Meseta"}`
+                      : `Delivery from ${currentBranch?.short_name ?? currentBranch?.name ?? "Meseta"}`}
                   </p>
+                  {currentBranch?.address_line1 && (
+                    <p className="mt-0.5 text-xs text-coffee-500">
+                      {currentBranch.address_line1}
+                      {currentBranch.city ? `, ${currentBranch.city}` : ""}
+                    </p>
+                  )}
                 </div>
               </li>
               <li className="flex items-start gap-3 rounded-xl bg-cream-100/60 p-3">

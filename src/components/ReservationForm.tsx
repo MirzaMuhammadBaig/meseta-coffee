@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CalendarCheck, Check, Loader2 } from "lucide-react";
+import { useBranch } from "@/lib/branch/BranchProvider";
 
 /* Per-keystroke filters. We sanitise as the user types instead of waiting
  * for submit — gives instant feedback and keeps bad characters out of
@@ -33,6 +34,7 @@ export default function ReservationForm() {
     "idle",
   );
   const [error, setError] = useState<string | null>(null);
+  const { currentBranchId, current: currentBranch, branches } = useBranch();
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -71,6 +73,7 @@ export default function ReservationForm() {
       reserved_for: start.toISOString(),
       ends_at: end.toISOString(),
       notes: fd.get("notes"),
+      branch_id: currentBranchId,
     };
 
     try {
@@ -112,6 +115,23 @@ export default function ReservationForm() {
 
   return (
     <form onSubmit={onSubmit} className="card grid gap-5 p-6 sm:p-8 lg:p-10">
+      {currentBranch && branches.length > 1 && (
+        <div className="inline-flex flex-wrap items-center gap-2 rounded-full border border-coffee-100 bg-cream-100/50 px-3 py-1.5 text-xs text-coffee-600">
+          <span className="text-coffee-500">Reserving at</span>
+          <span className="font-semibold text-coffee-800">
+            {currentBranch.short_name ?? currentBranch.name}
+          </span>
+          <button
+            type="button"
+            onClick={() =>
+              window.dispatchEvent(new Event("meseta:open-branch-picker"))
+            }
+            className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-coffee-700 ring-1 ring-coffee-100 transition hover:ring-coffee-300"
+          >
+            Switch
+          </button>
+        </div>
+      )}
       <div className="grid gap-5 sm:grid-cols-2">
         <div>
           <label className="text-xs font-semibold uppercase tracking-[0.2em] text-coffee-500">

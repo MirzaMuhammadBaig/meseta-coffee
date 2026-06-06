@@ -30,6 +30,8 @@ export type AdminOrder = {
   safepay_tracker: string | null;
   paid_at: string | null;
   created_at: string;
+  /** From migration 008 — null on legacy rows or pre-migration environments. */
+  branch_id: string | null;
 };
 
 /** Allowed transitions, mirroring how a café actually processes an order. */
