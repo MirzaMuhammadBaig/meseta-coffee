@@ -134,7 +134,8 @@ flowchart TB
     Cards -->|pick| Save[("💾 localStorage<br/>meseta.branch.id.v1<br/>meseta.branch.chosen.v1")]
     Save --> Page
 
-    Page --> Nav["🧭 Navbar chip<br/>'📍 Phase 4 ▾'<br/>tap to reopen picker"]
+    Page --> Switch["🔁 Contextual switchers<br/>BranchBanner on /menu + item page<br/>'Ordering from X [Switch]' on /checkout<br/>'Reserving at X [Switch]' on /reservations<br/>(navbar deliberately stays clean)"]
+    Switch -. tap Switch .-> Modal
 
     Page --> Co["🛒 Cart · /checkout"]
     Co -->|POST /api/checkout<br/>{ items, branch_id }| Srv["⚙️ Server validates<br/>branch_id against<br/>active branches"]

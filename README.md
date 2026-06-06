@@ -65,8 +65,11 @@ A production-ready public website + operator dashboard for **Meseta Coffee** (Ba
 
 **Multi-branch picker**
 - First-time customer reaching `/menu`, `/menu/[slug]`, `/checkout` or `/reservations` is prompted: "Which Meseta are you ordering from?" — modal with one card per branch (name, address, Google rating + review count).
-- Choice persists in localStorage; navbar chip + mobile-menu chip reopen the picker on demand.
-- A `BranchBanner` at the top of `/menu` and each item page confirms which outlet the order will go to.
+- Home, About, Gallery, Reviews and Contact stay completely uninterrupted — the picker only opens on order-intent routes.
+- Choice persists in `localStorage` (`meseta.branch.id.v2`). The picker is reopened on demand from one of three contextual switchers — never from the navbar:
+  - `BranchBanner` card at the top of `/menu` and each item page (Switch branch button)
+  - "Ordering from X [Switch]" trust chip on `/checkout`
+  - "Reserving at X [Switch]" trust chip on `/reservations`
 - Server validates the claimed `branch_id` against the active `branches` table at every `/api/checkout` and `/api/reservations` call — invalid or missing falls back silently to the main branch.
 
 **Static + dynamic content**
@@ -183,10 +186,11 @@ Both are seeded into the `branches` table by [migration 008](supabase/migrations
 
 - Visitor lands on `/`, `/about`, `/gallery`, `/reviews`, `/contact` — the picker stays quiet so the brand story is uninterrupted.
 - The moment the visitor reaches an order-intent route (`/menu`, `/menu/[slug]`, `/checkout`, `/reservations`) the picker modal opens — *if* they have not chosen yet.
-- Choice persists in `localStorage` (`meseta.branch.id.v1`).
-- A persistent **branch chip** in the navbar (desktop) and at the top of the mobile menu re-opens the picker on demand. Hidden on single-branch deployments.
-- A `BranchBanner` card sits above the menu grid and on each item page: *"Ordering from Phase 4 ★ 4.5 · 1,072 — Switch branch"*.
-- Checkout and reservation forms each show a "Ordering from / Reserving at *X* [Switch]" trust chip.
+- Choice persists in `localStorage` under `meseta.branch.id.v2`. The `v2` suffix exists so a UX revision (the picker moving off the home page) safely retriggers the modal once for users who picked under the old behaviour.
+- The navbar deliberately does **not** carry a branch chip. There are three contextual switchers, each placed where the customer is about to commit:
+  - **`BranchBanner` card** above the menu grid and at the top of each item page: *"Ordering from Phase 4 ★ 4.5 · 1,072 — Switch branch"*.
+  - **"Ordering from X [Switch]"** trust chip on `/checkout`, above the form.
+  - **"Reserving at X [Switch]"** trust chip on `/reservations`, above the form.
 - Order success page tells the customer *where* to pick up: *"Pickup at Phase 4 — The Riviera, Bahria Town."*
 
 ### Admin side
@@ -213,7 +217,7 @@ values
   ('gulberg', 'Meseta Coffee — Gulberg', 'Gulberg', 'MM Alam Road', 'Lahore', 3, false);
 ```
 
-That one row is enough — the picker, the navbar chip, the admin filters and the CSV exports all populate automatically.
+That one row is enough — the picker, the menu-page banner, the contextual switchers, the admin filters and the CSV exports all populate automatically.
 
 ---
 
@@ -460,7 +464,7 @@ meseta-coffee/
     │   ├── PurgeServiceWorker.tsx, CleanPreviewUrl.tsx, ClickEffect.tsx
     │   ├── CoffeeLoader.tsx, RouteLoading.tsx
     │   ├── anim/                    # CoffeeCup, LatteArt, beans, AnimatedRating, LiveBrewing, StoreStatusBadge
-    │   ├── branch/                  # BranchPicker (modal), BranchChip (navbar), BranchBanner (menu)
+    │   ├── branch/                  # BranchPicker (modal, auto-opens on order-intent routes), BranchBanner (menu + item page)
     │   ├── cart/                    # CartFab, CartDrawer, AddToOrderButton
     │   ├── checkout/                # PaymentMethodPicker
     │   └── admin/                   # AdminSidebar, AdminTopBar, AdminUIProvider, AdminToast,
