@@ -182,18 +182,36 @@ export default function BrewingTicker() {
         />
       </div>
 
-      <p className="mt-6 flex items-center justify-center gap-2 text-xs uppercase tracking-[0.18em] text-coffee-400">
-        {open ? (
-          <>
-            <Coffee className="h-3.5 w-3.5" strokeWidth={1.8} />
-            Live from the bar · updated every minute
-          </>
-        ) : (
-          <>
-            <Moon className="h-3.5 w-3.5" strokeWidth={1.8} />
-            Recent regulars · we reopen {nextWhenPhrase(status)}
-          </>
-        )}
+      {/* Footer line: icon + status sentence. The text is wrapped in a
+          <span> and the icon marked shrink-0 so on narrow screens the
+          whole sentence wraps as a unit *next to* the icon, instead of
+          the icon orphaning to its own line above wrapped text. */}
+      <p className="mt-6 px-4 text-center text-xs uppercase tracking-[0.18em] text-coffee-400">
+        <span className="inline-flex max-w-full items-center justify-center gap-2 align-middle">
+          {open ? (
+            <>
+              <Coffee
+                className="h-3.5 w-3.5 shrink-0"
+                strokeWidth={1.8}
+                aria-hidden
+              />
+              <span className="text-balance">
+                Live from the bar · updated every minute
+              </span>
+            </>
+          ) : (
+            <>
+              <Moon
+                className="h-3.5 w-3.5 shrink-0"
+                strokeWidth={1.8}
+                aria-hidden
+              />
+              <span className="text-balance">
+                Recent regulars · we reopen {nextWhenPhrase(status)}
+              </span>
+            </>
+          )}
+        </span>
       </p>
     </section>
   );
