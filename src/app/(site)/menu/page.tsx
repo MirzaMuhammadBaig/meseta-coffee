@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ChefHat, Receipt, Leaf } from "lucide-react";
 import CtaBanner from "@/components/CtaBanner";
 import MenuExplorer from "@/components/menu/MenuExplorer";
+import BranchBanner from "@/components/branch/BranchBanner";
 import { getPublicMenu } from "@/lib/data/menu";
 import { getActiveDeals } from "@/lib/data/deals-public";
 
@@ -39,7 +40,16 @@ export default async function MenuPage() {
       {/* Products surface immediately. Search + category chips live inside MenuExplorer. */}
       <section className="pb-14 pt-6 sm:pb-20 sm:pt-8 lg:pb-28 lg:pt-10">
         <div className="container-base">
-          <MenuExplorer items={items} categories={categories} deals={deals} />
+          {/* Confirms which branch the order will go to, with a one-tap
+              switch. Renders nothing when there is only one branch. */}
+          <BranchBanner variant="card" />
+          <div className="mt-8 sm:mt-10">
+            <MenuExplorer
+              items={items}
+              categories={categories}
+              deals={deals}
+            />
+          </div>
         </div>
       </section>
 

@@ -5,6 +5,7 @@ import { ArrowLeft, Clock, Sparkles, ChefHat } from "lucide-react";
 import AddToOrderButton from "@/components/cart/AddToOrderButton";
 import CtaBanner from "@/components/CtaBanner";
 import SafeImage from "@/components/SafeImage";
+import BranchBanner from "@/components/branch/BranchBanner";
 import {
   FALLBACK_MENU_IMAGE,
   getCategory,
@@ -83,6 +84,8 @@ export default async function MenuItemPage({ params }: { params: Params }) {
             )}
             <span className="text-coffee-700">{item.name}</span>
           </nav>
+
+          <BranchBanner variant="card" />
 
           <div className="mt-8 grid gap-8 lg:mt-12 lg:grid-cols-[1.05fr_1fr] lg:gap-14">
             {/* Image */}

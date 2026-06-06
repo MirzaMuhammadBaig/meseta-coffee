@@ -1,17 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
 import { MapPin, Star, X } from "lucide-react";
 import { useBranch } from "@/lib/branch/BranchProvider";
 import { branchShortAddress, type Branch } from "@/lib/data/branches-helpers";
 import { cn } from "@/lib/utils";
 
 /**
- * First-visit branch picker.
+ * Branch picker modal.
  *
- *   • Auto-opens once per device when there is more than one branch and
- *     the customer has not already chosen (per localStorage).
- *   • Re-openable on demand from the navbar chip via the global
+ *   • Auto-opens on /menu and /menu/[slug] when the customer has not yet
+ *     chosen a branch — the right moment to ask, because that is when
+ *     they are about to order. The home page stays uninterrupted.
+ *   • Item detail (/menu/[slug]) shows a contextual heading so the
+ *     prompt reads as a natural pre-order step, not a generic gate.
+ *   • Re-openable any time via the navbar chip → global
  *     `meseta:open-branch-picker` window event.
  *
  * Lives at the (site) layout level so it sits above every page.
@@ -19,20 +23,35 @@ import { cn } from "@/lib/utils";
 
 export const OPEN_EVENT = "meseta:open-branch-picker";
 
+const ORDER_ROUTES = /^\/(menu|checkout|reservations)(\/|$)/;
+
 export default function BranchPicker() {
   const { branches, currentBranchId, setBranchId, hasChosen, ready } =
     useBranch();
+  const pathname = usePathname() ?? "";
   const [open, setOpen] = useState(false);
 
-  // Auto-open on first visit (only when more than one branch exists).
+  const onOrderRoute = useMemo(
+    () => ORDER_ROUTES.test(pathname),
+    [pathname],
+  );
+  const onItemPage = useMemo(
+    () => /^\/menu\/[^/]+$/.test(pathname),
+    [pathname],
+  );
+
+  // Auto-open only when the customer reaches an order-intent route
+  // (menu / item / checkout / reservations) without having picked yet.
+  // Home + about + contact stay quiet so the brand story is uninterrupted.
   useEffect(() => {
     if (!ready) return;
     if (hasChosen) return;
     if (branches.length <= 1) return;
+    if (!onOrderRoute) return;
     setOpen(true);
-  }, [ready, hasChosen, branches.length]);
+  }, [ready, hasChosen, branches.length, onOrderRoute, pathname]);
 
-  // External open trigger (navbar chip, footer, etc.).
+  // External open trigger (navbar chip, switcher links, etc.).
   useEffect(() => {
     const handler = () => setOpen(true);
     window.addEventListener(OPEN_EVENT, handler);
@@ -87,11 +106,14 @@ export default function BranchPicker() {
             id="branch-picker-title"
             className="mt-2 font-display text-2xl text-coffee-800 sm:text-3xl"
           >
-            Which Meseta are you ordering from?
+            {onItemPage
+              ? "Choose a branch to continue ordering"
+              : "Which Meseta are you ordering from?"}
           </h2>
           <p className="mt-1 text-sm text-coffee-500">
-            We have a few outlets across Rawalpindi. Pick the one closest to
-            you. You can switch any time.
+            {onItemPage
+              ? "We need to know which outlet to send your order to. You can switch any time from the navbar."
+              : "We have outlets across Rawalpindi. Pick the one closest to you. You can switch any time."}
           </p>
         </div>
 

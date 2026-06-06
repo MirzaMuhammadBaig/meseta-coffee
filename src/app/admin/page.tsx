@@ -15,6 +15,7 @@ import PageHeading from "@/components/admin/PageHeading";
 import StatCard from "@/components/admin/StatCard";
 import { formatPkr } from "@/lib/utils";
 import { getStoreSettings } from "@/lib/admin/store";
+import { getActiveBranches } from "@/lib/data/branches";
 import {
   BUSYNESS_LABELS,
   BUSYNESS_MULTIPLIERS,
@@ -58,10 +59,49 @@ function daysAgoUtc(days: number) {
   return d.toISOString();
 }
 
-export default async function AdminDashboardPage() {
+export default async function AdminDashboardPage({
+  searchParams,
+}: {
+  searchParams: { branch?: string };
+}) {
   const supabase = createSupabaseServerClient();
   const todayIso = startOfTodayUtc();
   const fourteenDaysAgoIso = daysAgoUtc(14);
+  const branchId = searchParams.branch ?? "all";
+  const filteringByBranch = branchId !== "all";
+
+  // Build the four orders/reservations queries inline so they keep
+  // their own Supabase-inferred types. Branch filter is applied
+  // conditionally on each one.
+  let todayOrdersQ = supabase
+    .from("orders")
+    .select("total_pkr, payment_status")
+    .gte("created_at", todayIso);
+  if (filteringByBranch) todayOrdersQ = todayOrdersQ.eq("branch_id", branchId);
+
+  let last14OrdersQ = supabase
+    .from("orders")
+    .select(
+      "id, number, customer_name, total_pkr, status, payment_status, payment_method, items, created_at",
+    )
+    .gte("created_at", fourteenDaysAgoIso)
+    .order("created_at", { ascending: false });
+  if (filteringByBranch)
+    last14OrdersQ = last14OrdersQ.eq("branch_id", branchId);
+
+  let pendingOrdersQ = supabase
+    .from("orders")
+    .select("id", { count: "exact", head: true })
+    .in("status", ["placed", "accepted", "preparing"]);
+  if (filteringByBranch)
+    pendingOrdersQ = pendingOrdersQ.eq("branch_id", branchId);
+
+  let reservationsQ = supabase
+    .from("reservations")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "pending");
+  if (filteringByBranch)
+    reservationsQ = reservationsQ.eq("branch_id", branchId);
 
   // Pull everything we need in parallel.
   const [
@@ -72,24 +112,12 @@ export default async function AdminDashboardPage() {
     messagesRes,
     menuItemsRes,
     settings,
+    branches,
   ] = await Promise.all([
-    supabase
-      .from("orders")
-      .select("total_pkr, payment_status")
-      .gte("created_at", todayIso),
-    supabase
-      .from("orders")
-      .select("id, number, customer_name, total_pkr, status, payment_status, payment_method, items, created_at")
-      .gte("created_at", fourteenDaysAgoIso)
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("orders")
-      .select("id", { count: "exact", head: true })
-      .in("status", ["placed", "accepted", "preparing"]),
-    supabase
-      .from("reservations")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "pending"),
+    todayOrdersQ,
+    last14OrdersQ,
+    pendingOrdersQ,
+    reservationsQ,
     supabase
       .from("contact_messages")
       .select("id", { count: "exact", head: true })
@@ -98,7 +126,11 @@ export default async function AdminDashboardPage() {
       .from("menu_items")
       .select("id, is_disabled"),
     getStoreSettings(),
+    getActiveBranches(),
   ]);
+  const activeBranch = filteringByBranch
+    ? branches.find((b) => b.id === branchId)
+    : null;
 
   const todayOrders = todayOrdersRes.data ?? [];
   const last14: OrderRow[] = (last14OrdersRes.data as OrderRow[]) ?? [];
@@ -149,8 +181,42 @@ export default async function AdminDashboardPage() {
       <PageHeading
         eyebrow="Today"
         title="Dashboard"
-        description="A live snapshot of orders, reservations and inbox."
+        description={
+          activeBranch
+            ? `A live snapshot of ${activeBranch.short_name ?? activeBranch.name} — orders, reservations and inbox.`
+            : "A live snapshot of orders, reservations and inbox."
+        }
       />
+
+      {branches.length > 1 && (
+        <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-coffee-500">
+          <span className="font-semibold uppercase tracking-[0.18em] text-coffee-700">
+            Branch
+          </span>
+          {[{ id: "all", short_name: "All branches", name: "All branches" }, ...branches].map(
+            (b) => {
+              const active = (branchId ?? "all") === b.id;
+              const sp = new URLSearchParams();
+              if (b.id !== "all") sp.set("branch", b.id);
+              const href = sp.toString() ? `/admin?${sp.toString()}` : "/admin";
+              return (
+                <Link
+                  key={b.id}
+                  href={href}
+                  className={
+                    "rounded-full px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] transition " +
+                    (active
+                      ? "bg-coffee-700 text-cream-50"
+                      : "border border-coffee-100 bg-white text-coffee-600 hover:border-coffee-300")
+                  }
+                >
+                  {b.short_name ?? b.name}
+                </Link>
+              );
+            },
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
@@ -224,7 +290,11 @@ export default async function AdminDashboardPage() {
               </h2>
             </div>
             <Link
-              href="/admin/orders"
+              href={
+                branchId !== "all"
+                  ? `/admin/orders?branch=${branchId}`
+                  : "/admin/orders"
+              }
               className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold uppercase tracking-[0.18em] text-coffee-600 hover:text-coffee-900"
             >
               View all <ArrowUpRight className="h-3.5 w-3.5" />
@@ -341,13 +411,21 @@ export default async function AdminDashboardPage() {
             </p>
             <ul className="mt-3 space-y-2 text-sm">
               <InboxRow
-                href="/admin/orders"
+                href={
+                  branchId !== "all"
+                    ? `/admin/orders?branch=${branchId}`
+                    : "/admin/orders"
+                }
                 icon={CreditCard}
                 label="Orders in queue"
                 count={pendingOrders}
               />
               <InboxRow
-                href="/admin/reservations"
+                href={
+                  branchId !== "all"
+                    ? `/admin/reservations?branch=${branchId}`
+                    : "/admin/reservations"
+                }
                 icon={CalendarCheck2}
                 label="Pending reservations"
                 count={pendingReservations}

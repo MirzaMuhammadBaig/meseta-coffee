@@ -32,3 +32,29 @@ export type Branch = {
 export function branchShortAddress(b: Branch): string {
   return [b.address_line1, b.city].filter(Boolean).join(", ");
 }
+
+/**
+ * Whether `itemSlug` is available at `branchId`.
+ *
+ * Phase 1: the menu is shared across all branches so this always
+ * returns true. Phase 3 will add a `branch_menu_items` join table and
+ * a per-branch availability map can be passed in — at which point the
+ * customer will see a "not available at this branch" prompt instead of
+ * being able to add to cart.
+ *
+ * Callers ready for Phase 3 should pass the optional `availability`
+ * map (keyed by branch id → set of available item slugs). When the map
+ * is omitted we fall back to the Phase 1 default (everything available
+ * everywhere) so existing call sites do not need to change.
+ */
+export function isItemAvailableAtBranch(
+  itemSlug: string,
+  branchId: string | null,
+  availability?: Map<string, Set<string>>,
+): boolean {
+  if (!branchId) return true;
+  if (!availability) return true;
+  const set = availability.get(branchId);
+  if (!set) return true;
+  return set.has(itemSlug);
+}
